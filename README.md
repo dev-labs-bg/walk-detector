@@ -6,4 +6,4 @@ For example a charity app which donates money when you walk.
 
 The project will use the Google sensors API.
 
-For more questions you can contact me at sstoyanova26@gmail.com :)
+Please feel free to contact me if you have any questions. :)
