@@ -1,6 +1,5 @@
 package bg.devlabs.walkdetector;
 
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -22,22 +21,29 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
-import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Scope;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.fitness.Fitness;
+import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
+import com.google.android.gms.fitness.data.DataSet;
 import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
-import com.google.android.gms.fitness.data.Value;
-import com.google.android.gms.fitness.request.DataSourcesRequest;
-import com.google.android.gms.fitness.request.OnDataPointListener;
-import com.google.android.gms.fitness.request.SensorRequest;
-import com.google.android.gms.fitness.result.DataSourcesResult;
+import com.google.android.gms.fitness.request.DataReadRequest;
+import com.google.android.gms.fitness.result.DataReadResult;
 
+import java.text.DateFormat;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * This sample demonstrates how to use the Sensors API of the Google Fit platform to find
@@ -46,28 +52,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "BasicSensorsApi";
-    // [START auth_variable_references]
+    private static final int MINUTE_UPDATE_PERIOD = 5;
     private GoogleApiClient mClient = null;
-    // [END auth_variable_references]
     TextView infoTextView;
 
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
-    // [START mListener_variable_reference]
-    // Need to hold a reference to this listener, as it's passed into the "unregister"
-    // method in order to stop all sensors from sending data to this listener.
-    private OnDataPointListener mListener;
-    // [END mListener_variable_reference]
-
-
-    // [START auth_oncreate_setup]
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Put application specific code here.
 
         setContentView(R.layout.activity_main);
-        infoTextView = (TextView)findViewById(R.id.text_view);
+        infoTextView = (TextView) findViewById(R.id.text_view);
         // When permissions are revoked the app is restarted so onCreate is sufficient to check for
         // permissions core to the Activity's functionality.
         if (!checkPermissions()) {
@@ -78,34 +75,29 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
         // This ensures that if the user denies the permissions then uses Settings to re-enable
         // them, the app will start working.
         buildFitnessClient();
     }
-    // [END auth_oncreate_setup]
 
-    // [START auth_build_googleapiclient_beginning]
     /**
-     *  Build a {@link GoogleApiClient} that will authenticate the user and allow the application
-     *  to connect to Fitness APIs. The scopes included should match the scopes your app needs
-     *  (see documentation for details). Authentication will occasionally fail intentionally,
-     *  and in those cases, there will be a known resolution, which the OnConnectionFailedListener()
-     *  can address. Examples of this include the user never having signed in before, or having
-     *  multiple accounts on the device and needing to specify which account to use, etc.
+     * Build a {@link GoogleApiClient} that will authenticate the user and allow the application
+     * to connect to Fitness APIs. The scopes included should match the scopes your app needs
+     * (see documentation for details). Authentication will occasionally fail intentionally,
+     * and in those cases, there will be a known resolution, which the OnConnectionFailedListener()
+     * can address. Examples of this include the user never having signed in before, or having
+     * multiple accounts on the device and needing to specify which account to use, etc.
      */
     private void buildFitnessClient() {
         if (mClient == null && checkPermissions()) {
             mClient = new GoogleApiClient.Builder(this)
-                    .addApi(Fitness.SENSORS_API)
-                    .addScope(new Scope(Scopes.FITNESS_ACTIVITY_READ))
+                    .addApi(Fitness.HISTORY_API)
+                    .addScope(new Scope(Scopes.FITNESS_ACTIVITY_READ_WRITE))
                     .addConnectionCallbacks(
                             new GoogleApiClient.ConnectionCallbacks() {
                                 @Override
                                 public void onConnected(Bundle bundle) {
-//                                    Log.d(TAG, "Connected!!!");
-                                    // Now you can make calls to the Fitness APIs.
-                                    findFitnessDataSources();
+                                    queryHistory();
                                 }
 
                                 @Override
@@ -137,122 +129,100 @@ public class MainActivity extends AppCompatActivity {
                     .build();
         }
     }
-    // [END auth_build_googleapiclient_beginning]
 
-    /**
-     * Find available data sources and attempt to register on a specific {@link DataType}.
-     * If the application cares about a data type but doesn't care about the source of the data,
-     * this can be skipped entirely, instead calling
-     *     {@link com.google.android.gms.fitness.SensorsApi
-     *     #register(GoogleApiClient, SensorRequest, DataSourceListener)},
-     * where the {@link SensorRequest} contains the desired data type.
-     */
-    private void findFitnessDataSources() {
-        // [START find_data_sources]
-        // Note: Fitness.SensorsApi.findDataSources() requires the ACCESS_FINE_LOCATION permission.
-        Fitness.SensorsApi.findDataSources(mClient, new DataSourcesRequest.Builder()
-                // At least one datatype must be specified.
-                .setDataTypes(DataType.TYPE_ACTIVITY_SAMPLES)
-                // Can specify whether data type is raw or derived.
-                .setDataSourceTypes(DataSource.TYPE_DERIVED)
-                .build())
-                .setResultCallback(new ResultCallback<DataSourcesResult>() {
+    private void queryHistory() {
+        Calendar cal = Calendar.getInstance();
+        Date now = new Date();
+        cal.setTime(now);
+        long endTime = cal.getTimeInMillis();
+        cal.add(Calendar.MINUTE, -MINUTE_UPDATE_PERIOD);
+        long startTime = cal.getTimeInMillis();
+
+        java.text.DateFormat dateFormat = DateFormat.getDateTimeInstance();
+        Log.d("History", "Range Start: " + dateFormat.format(startTime));
+        Log.d("History", "Range End: " + dateFormat.format(endTime));
+        final DataSource ds = new DataSource.Builder()
+                .setAppPackageName("com.google.android.gms")
+                .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
+                .setType(DataSource.TYPE_DERIVED)
+                .setStreamName("estimated_steps")
+                .build();
+        //Check how many steps were walked and recorded in the last 7 days
+        final DataReadRequest readRequest = new DataReadRequest.Builder()
+                // The data request can specify multiple data types to return, effectively
+                // combining multiple data queries into one call.
+                // In this example, it's very unlikely that the request is for several hundred
+                // data points each consisting of a few steps and a timestamp.  The more likely
+                // scenario is wanting to see how many steps were walked per day, for 7 days.
+                .aggregate(ds, DataType.AGGREGATE_STEP_COUNT_DELTA)
+                .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                .build();
+
+        Observable.just(readRequest)
+                .map(new Function<DataReadRequest, DataReadResult>() {
                     @Override
-                    public void onResult(DataSourcesResult dataSourcesResult) {
-//                        Log.d(TAG, "Result: " + dataSourcesResult.getStatus().toString());
-                        for (DataSource dataSource : dataSourcesResult.getDataSources()) {
-//                            Log.d(TAG, "Data source found: " + dataSource.toString());
-//                            Log.d(TAG, "Data Source type: " + dataSource.getDataType().getName());
+                    public DataReadResult apply(DataReadRequest dataReadRequest) throws Exception {
+                        // Invoke the History API to fetch the data with the query and await the result of
+                        // the read request.
+                        return Fitness.HistoryApi.readData(mClient, readRequest).await(1, TimeUnit.MINUTES);
+                    }
+                })
+                .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(
+                new Observer<DataReadResult>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
 
-                            //Let's register a listener to receive Activity data!
-                            if (dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)
-                                    && mListener == null) {
-//                                Log.d(TAG, "Data source for TYPE_ACTIVITY_SAMPLES found!  Registering.");
-                                registerFitnessDataListener(dataSource,
-                                        DataType.TYPE_ACTIVITY_SAMPLES);
+                    }
+
+                    @Override
+                    public void onNext(DataReadResult dataReadResult) {
+                        //Used for aggregated data
+                        if (dataReadResult.getBuckets().size() > 0) {
+                            Log.d("History", "Number of buckets: " + dataReadResult.getBuckets().size());
+                            for (Bucket bucket : dataReadResult.getBuckets()) {
+                                List<DataSet> dataSets = bucket.getDataSets();
+                                for (DataSet dataSet : dataSets) {
+                                    showDataSet(dataSet);
+                                }
+                            }
+                        }
+                        //Used for non-aggregated data
+                        else if (dataReadResult.getDataSets().size() > 0) {
+                            Log.d("History", "Number of returned DataSets: " + dataReadResult.getDataSets().size());
+                            for (DataSet dataSet : dataReadResult.getDataSets()) {
+                                showDataSet(dataSet);
                             }
                         }
                     }
-                });
-        // [END find_data_sources]
-    }
 
-    /**
-     * Register a listener with the Sensors API for the provided {@link DataSource} and
-     * {@link DataType} combo.
-     */
-    private void registerFitnessDataListener(DataSource dataSource, DataType dataType) {
-        // [START register_data_listener]
-        mListener = new OnDataPointListener() {
-            @Override
-            public void onDataPoint(DataPoint dataPoint) {
-                for (Field field : dataPoint.getDataType().getFields()) {
-                    final Value val = dataPoint.getValue(field);
-//                    Log.d(TAG, "Detected DataPoint field: " + field.getName());
-                    Log.d(TAG, "Detected DataPoint value: " + val);
-                   runOnUiThread(new Runnable() {
-                       @Override
-                       public void run() {
-                           infoTextView.setText(String.format("%s\n\n%s - %s", infoTextView.getText(),
-                                   new Date().toString(), val.toString()));
-                       }
-                   });
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
                 }
-            }
-        };
-
-        Fitness.SensorsApi.add(
-                mClient,
-                new SensorRequest.Builder()
-                        .setDataSource(dataSource) // Optional but recommended for custom data sets.
-                        .setDataType(dataType) // Can't be omitted.
-                        .setAccuracyMode(SensorRequest.ACCURACY_MODE_HIGH)
-                        .setSamplingRate(5, TimeUnit.SECONDS)
-                        .setFastestRate(3, TimeUnit.SECONDS)
-                        .setMaxDeliveryLatency(1, TimeUnit.SECONDS)
-                        .build(),
-                mListener)
-                .setResultCallback(new ResultCallback<Status>() {
-                    @Override
-                    public void onResult(Status status) {
-                        if (status.isSuccess()) {
-//                            Log.d(TAG, "Listener registered!");
-                        } else {
-                            Log.d(TAG, "Listener not registered.");
-                        }
-                    }
-                });
-        // [END register_data_listener]
+        );
     }
 
-    /**
-     * Unregister the listener with the Sensors API.
-     */
-    private void unregisterFitnessDataListener() {
-        if (mListener == null) {
-            // This code only activates one listener at a time.  If there's no listener, there's
-            // nothing to unregister.
-            return;
-        }
+    private void showDataSet(DataSet dataSet) {
+        Log.d("History", "Data returned for Data type: " + dataSet.getDataType().getName());
+        DateFormat dateFormat = DateFormat.getDateInstance();
+        DateFormat timeFormat = DateFormat.getTimeInstance();
 
-        // [START unregister_data_listener]
-        // Waiting isn't actually necessary as the unregister call will complete regardless,
-        // even if called from within onStop, but a callback can still be added in order to
-        // inspect the results.
-        Fitness.SensorsApi.remove(
-                mClient,
-                mListener)
-                .setResultCallback(new ResultCallback<Status>() {
-                    @Override
-                    public void onResult(Status status) {
-                        if (status.isSuccess()) {
-                            Log.d(TAG, "Listener was removed!");
-                        } else {
-                            Log.d(TAG, "Listener was not removed.");
-                        }
-                    }
-                });
-        // [END unregister_data_listener]
+        for (DataPoint dp : dataSet.getDataPoints()) {
+            Log.d("History", "Data point:");
+            Log.d("History", "\tType: " + dp.getDataType().getName());
+            Log.d("History", "\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)) + " " + timeFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
+            Log.d("History", "\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)) + " " + timeFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
+            for (Field field : dp.getDataType().getFields()) {
+                Log.d("History", "\tField: " + field.getName() +
+                        " Value: " + dp.getValue(field));
+            }
+        }
     }
 
     @Override
@@ -266,10 +236,14 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_unregister_listener) {
-            unregisterFitnessDataListener();
+            stopCheckingForWalking();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void stopCheckingForWalking() {
+        //TODO implement
     }
 
     /**
@@ -334,12 +308,10 @@ public class MainActivity extends AppCompatActivity {
                 buildFitnessClient();
             } else {
                 // Permission denied.
-
                 // In this Activity we've chosen to notify the user that they
                 // have rejected a core permission for the app since it makes the Activity useless.
                 // We're communicating this message in a Snackbar since this is a sample app, but
                 // core permissions would typically be best requested during a welcome-screen flow.
-
                 // Additionally, it is important to remember that a permission might have been
                 // rejected without asking the user for permission (device policy or "Never ask
                 // again" prompts). Therefore, a user interface affordance is typically implemented
