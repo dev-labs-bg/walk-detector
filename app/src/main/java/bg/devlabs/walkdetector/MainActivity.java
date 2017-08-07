@@ -2,9 +2,9 @@ package bg.devlabs.walkdetector;
 
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -12,9 +12,11 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.Scopes;
@@ -34,13 +36,8 @@ import com.google.android.gms.fitness.request.OnDataPointListener;
 import com.google.android.gms.fitness.request.SensorRequest;
 import com.google.android.gms.fitness.result.DataSourcesResult;
 
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
-
-import bg.devlabs.walkdetector.logger.Log;
-import bg.devlabs.walkdetector.logger.LogView;
-import bg.devlabs.walkdetector.logger.LogWrapper;
-import bg.devlabs.walkdetector.logger.MessageOnlyLogFilter;
-
 
 /**
  * This sample demonstrates how to use the Sensors API of the Google Fit platform to find
@@ -52,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     // [START auth_variable_references]
     private GoogleApiClient mClient = null;
     // [END auth_variable_references]
+    TextView infoTextView;
 
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
@@ -69,10 +67,7 @@ public class MainActivity extends AppCompatActivity {
         // Put application specific code here.
 
         setContentView(R.layout.activity_main);
-        // This method sets up our custom logger, which will print all log messages to the device
-        // screen, as well as to adb logcat.
-        initializeLogging();
-
+        infoTextView = (TextView)findViewById(R.id.text_view);
         // When permissions are revoked the app is restarted so onCreate is sufficient to check for
         // permissions core to the Activity's functionality.
         if (!checkPermissions()) {
@@ -103,12 +98,12 @@ public class MainActivity extends AppCompatActivity {
         if (mClient == null && checkPermissions()) {
             mClient = new GoogleApiClient.Builder(this)
                     .addApi(Fitness.SENSORS_API)
-                    .addScope(new Scope(Scopes.FITNESS_LOCATION_READ))
+                    .addScope(new Scope(Scopes.FITNESS_ACTIVITY_READ))
                     .addConnectionCallbacks(
                             new GoogleApiClient.ConnectionCallbacks() {
                                 @Override
                                 public void onConnected(Bundle bundle) {
-                                    Log.i(TAG, "Connected!!!");
+//                                    Log.d(TAG, "Connected!!!");
                                     // Now you can make calls to the Fitness APIs.
                                     findFitnessDataSources();
                                 }
@@ -118,10 +113,10 @@ public class MainActivity extends AppCompatActivity {
                                     // If your connection to the sensor gets lost at some point,
                                     // you'll be able to determine the reason and react to it here.
                                     if (i == ConnectionCallbacks.CAUSE_NETWORK_LOST) {
-                                        Log.i(TAG, "Connection lost.  Cause: Network Lost.");
+                                        Log.d(TAG, "Connection lost.  Cause: Network Lost.");
                                     } else if (i
                                             == ConnectionCallbacks.CAUSE_SERVICE_DISCONNECTED) {
-                                        Log.i(TAG,
+                                        Log.d(TAG,
                                                 "Connection lost.  Reason: Service Disconnected");
                                     }
                                 }
@@ -130,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
                     .enableAutoManage(this, 0, new GoogleApiClient.OnConnectionFailedListener() {
                         @Override
                         public void onConnectionFailed(ConnectionResult result) {
-                            Log.i(TAG, "Google Play services connection failed. Cause: " +
+                            Log.d(TAG, "Google Play services connection failed. Cause: " +
                                     result.toString());
                             Snackbar.make(
                                     MainActivity.this.findViewById(R.id.main_activity_view),
@@ -157,24 +152,24 @@ public class MainActivity extends AppCompatActivity {
         // Note: Fitness.SensorsApi.findDataSources() requires the ACCESS_FINE_LOCATION permission.
         Fitness.SensorsApi.findDataSources(mClient, new DataSourcesRequest.Builder()
                 // At least one datatype must be specified.
-                .setDataTypes(DataType.TYPE_LOCATION_SAMPLE)
+                .setDataTypes(DataType.TYPE_ACTIVITY_SAMPLES)
                 // Can specify whether data type is raw or derived.
-                .setDataSourceTypes(DataSource.TYPE_RAW)
+                .setDataSourceTypes(DataSource.TYPE_DERIVED)
                 .build())
                 .setResultCallback(new ResultCallback<DataSourcesResult>() {
                     @Override
                     public void onResult(DataSourcesResult dataSourcesResult) {
-                        Log.i(TAG, "Result: " + dataSourcesResult.getStatus().toString());
+//                        Log.d(TAG, "Result: " + dataSourcesResult.getStatus().toString());
                         for (DataSource dataSource : dataSourcesResult.getDataSources()) {
-                            Log.i(TAG, "Data source found: " + dataSource.toString());
-                            Log.i(TAG, "Data Source type: " + dataSource.getDataType().getName());
+//                            Log.d(TAG, "Data source found: " + dataSource.toString());
+//                            Log.d(TAG, "Data Source type: " + dataSource.getDataType().getName());
 
                             //Let's register a listener to receive Activity data!
-                            if (dataSource.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)
+                            if (dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)
                                     && mListener == null) {
-                                Log.i(TAG, "Data source for LOCATION_SAMPLE found!  Registering.");
+//                                Log.d(TAG, "Data source for TYPE_ACTIVITY_SAMPLES found!  Registering.");
                                 registerFitnessDataListener(dataSource,
-                                        DataType.TYPE_LOCATION_SAMPLE);
+                                        DataType.TYPE_ACTIVITY_SAMPLES);
                             }
                         }
                     }
@@ -192,9 +187,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDataPoint(DataPoint dataPoint) {
                 for (Field field : dataPoint.getDataType().getFields()) {
-                    Value val = dataPoint.getValue(field);
-                    Log.i(TAG, "Detected DataPoint field: " + field.getName());
-                    Log.i(TAG, "Detected DataPoint value: " + val);
+                    final Value val = dataPoint.getValue(field);
+//                    Log.d(TAG, "Detected DataPoint field: " + field.getName());
+                    Log.d(TAG, "Detected DataPoint value: " + val);
+                   runOnUiThread(new Runnable() {
+                       @Override
+                       public void run() {
+                           infoTextView.setText(String.format("%s\n\n%s - %s", infoTextView.getText(),
+                                   new Date().toString(), val.toString()));
+                       }
+                   });
                 }
             }
         };
@@ -204,16 +206,19 @@ public class MainActivity extends AppCompatActivity {
                 new SensorRequest.Builder()
                         .setDataSource(dataSource) // Optional but recommended for custom data sets.
                         .setDataType(dataType) // Can't be omitted.
-                        .setSamplingRate(10, TimeUnit.SECONDS)
+                        .setAccuracyMode(SensorRequest.ACCURACY_MODE_HIGH)
+                        .setSamplingRate(5, TimeUnit.SECONDS)
+                        .setFastestRate(3, TimeUnit.SECONDS)
+                        .setMaxDeliveryLatency(1, TimeUnit.SECONDS)
                         .build(),
                 mListener)
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
                     public void onResult(Status status) {
                         if (status.isSuccess()) {
-                            Log.i(TAG, "Listener registered!");
+//                            Log.d(TAG, "Listener registered!");
                         } else {
-                            Log.i(TAG, "Listener not registered.");
+                            Log.d(TAG, "Listener not registered.");
                         }
                     }
                 });
@@ -241,9 +246,9 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onResult(Status status) {
                         if (status.isSuccess()) {
-                            Log.i(TAG, "Listener was removed!");
+                            Log.d(TAG, "Listener was removed!");
                         } else {
-                            Log.i(TAG, "Listener was not removed.");
+                            Log.d(TAG, "Listener was not removed.");
                         }
                     }
                 });
@@ -268,29 +273,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     *  Initialize a custom log class that outputs both to in-app targets and logcat.
-     */
-    private void initializeLogging() {
-        // Wraps Android's native log framework.
-        LogWrapper logWrapper = new LogWrapper();
-        // Using Log, front-end to the logging chain, emulates android.util.log method signatures.
-        Log.setLogNode(logWrapper);
-        // Filter strips out everything except the message text.
-        MessageOnlyLogFilter msgFilter = new MessageOnlyLogFilter();
-        logWrapper.setNext(msgFilter);
-        // On screen logging via a customized TextView.
-        LogView logView = (LogView) findViewById(R.id.sample_logview);
-
-        // Fixing this lint errors adds logic without benefit.
-        //noinspection AndroidLintDeprecation
-        logView.setTextAppearance(this, R.style.Log);
-
-        logView.setBackgroundColor(Color.WHITE);
-        msgFilter.setNext(logView);
-        Log.i(TAG, "Ready");
-    }
-
-    /**
      * Return the current state of the permissions needed.
      */
     private boolean checkPermissions() {
@@ -299,6 +281,7 @@ public class MainActivity extends AppCompatActivity {
         return permissionState == PackageManager.PERMISSION_GRANTED;
     }
 
+    @SuppressLint("WrongViewCast")
     private void requestPermissions() {
         boolean shouldProvideRationale =
                 ActivityCompat.shouldShowRequestPermissionRationale(this,
@@ -307,7 +290,7 @@ public class MainActivity extends AppCompatActivity {
         // Provide an additional rationale to the user. This would happen if the user denied the
         // request previously, but didn't check the "Don't ask again" checkbox.
         if (shouldProvideRationale) {
-            Log.i(TAG, "Displaying permission rationale to provide additional context.");
+            Log.d(TAG, "Displaying permission rationale to provide additional context.");
             Snackbar.make(
                     findViewById(R.id.main_activity_view),
                     R.string.permission_rationale,
@@ -323,7 +306,7 @@ public class MainActivity extends AppCompatActivity {
                     })
                     .show();
         } else {
-            Log.i(TAG, "Requesting permission");
+            Log.d(TAG, "Requesting permission");
             // Request permission. It's possible this can be auto answered if device policy
             // sets the permission in a given state or the user denied the permission
             // previously and checked "Never ask again".
@@ -336,15 +319,16 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Callback received when a permissions request has been completed.
      */
+    @SuppressLint("WrongViewCast")
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        Log.i(TAG, "onRequestPermissionResult");
+        Log.d(TAG, "onRequestPermissionResult");
         if (requestCode == REQUEST_PERMISSIONS_REQUEST_CODE) {
             if (grantResults.length <= 0) {
                 // If user interaction was interrupted, the permission request is cancelled and you
                 // receive empty arrays.
-                Log.i(TAG, "User interaction was cancelled.");
+                Log.d(TAG, "User interaction was cancelled.");
             } else if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission was granted.
                 buildFitnessClient();

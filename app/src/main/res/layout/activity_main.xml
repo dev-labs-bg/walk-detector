@@ -21,19 +21,8 @@ limitations under the License.
                 android:padding="16dp"
                 tools:context=".MainActivity">
     <TextView
-        android:id="@+id/title_text_view"
+        android:id="@+id/text_view"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/intro_text" />
-    <ScrollView
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_below="@id/title_text_view">
-        <bg.devlabs.walkdetector.logger.LogView
-            android:id="@+id/sample_logview"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:scrollbars="vertical" />
-    </ScrollView>
+        android:layout_height="wrap_content"/>
 </RelativeLayout>
 
