@@ -1,30 +1,46 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        release {
+            keyAlias "${RELEASE_KEY_ALIAS}"
+            keyPassword "${RELEASE_KEY_PASSWORD}"
+            storeFile file("${RELEASE_STORE_FILE}")
+            storePassword "${RELEASE_KEY_PASSWORD}"
+        }
+    }
     compileSdkVersion 25
     buildToolsVersion "25.0.3"
     defaultConfig {
         applicationId "bg.devlabs.walkdetector"
         minSdkVersion 19
-        targetSdkVersion 26
-        versionCode 1
+        targetSdkVersion 25
+        versionCode 2
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        signingConfig signingConfigs.release
     }
     buildTypes {
         release {
             minifyEnabled false
+            debuggable true
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    productFlavors {
+    }
 }
 
+
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    // Note, specific version numbers are managed in gradle.properties. This is preferred since it
+    // easily keeps sub-projects on the same versions.
+    compile "com.google.android.gms:play-services-fitness:${google_play_services_library}"
+    compile "com.android.support:appcompat-v7:${google_support_library}"
+    compile "com.android.support:design:${google_support_library}"
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     androidTestImplementation('com.android.support.test.espresso:espresso-core:3.0.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    implementation 'com.android.support:appcompat-v7:25.4.0'
-    testImplementation 'junit:junit:4.12'
-    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
 }
