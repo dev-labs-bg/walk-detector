@@ -2,22 +2,26 @@ package bg.devlabs.walkdetector;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.TextView;
 
-import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
@@ -26,7 +30,6 @@ import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
 import com.google.android.gms.fitness.data.DataSet;
-import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
 import com.google.android.gms.fitness.request.DataReadRequest;
@@ -39,10 +42,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
-import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 /**
@@ -52,9 +52,18 @@ import io.reactivex.schedulers.Schedulers;
  */
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "BasicSensorsApi";
-    private static final int MINUTE_UPDATE_PERIOD = 5;
+    //how long will the checked period be for walking activity
+    private static final int CHECKED_PERIOD_SECOND = 180; //3 mins
+    //how much will the app wait for response until a timeout exception is thrown
+    private static final int AWAIT_PERIOD_SECOND = 60; //1 min
+    //how ofter will we query the client for walking activity
+    private static final int OBSERVABLE_PERIOD_SECOND = CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
+    //Walking slow (2 mph)	67 steps per minute which is almost one step per second
+    private static final int SLOW_WALKING_STEPS_PER_SECOND = 1;
+    private static final int COUNT_STEPS_WALKING = CHECKED_PERIOD_SECOND * SLOW_WALKING_STEPS_PER_SECOND;
     private GoogleApiClient mClient = null;
     TextView infoTextView;
+    java.text.DateFormat dateFormat = DateFormat.getDateTimeInstance();
 
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
@@ -97,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
                             new GoogleApiClient.ConnectionCallbacks() {
                                 @Override
                                 public void onConnected(Bundle bundle) {
-                                    queryHistory();
+                                    startTimerObservable();
                                 }
 
                                 @Override
@@ -114,98 +123,90 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                     )
-                    .enableAutoManage(this, 0, new GoogleApiClient.OnConnectionFailedListener() {
-                        @Override
-                        public void onConnectionFailed(ConnectionResult result) {
-                            Log.d(TAG, "Google Play services connection failed. Cause: " +
-                                    result.toString());
-                            Snackbar.make(
-                                    MainActivity.this.findViewById(R.id.main_activity_view),
-                                    "Exception while connecting to Google Play services: " +
-                                            result.getErrorMessage(),
-                                    Snackbar.LENGTH_INDEFINITE).show();
-                        }
+                    .enableAutoManage(this, 0, result -> {
+                        Log.d(TAG, "Google Play services connection failed. Cause: " +
+                                result.toString());
+                        Snackbar.make(
+                                MainActivity.this.findViewById(R.id.main_activity_view),
+                                "Exception while connecting to Google Play services: " +
+                                        result.getErrorMessage(),
+                                Snackbar.LENGTH_INDEFINITE).show();
                     })
                     .build();
         }
     }
 
-    private void queryHistory() {
+    private void startTimerObservable() {
+        Log.d(TAG, "startTimerObservable: ");
+        Observable.interval(OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
+                .map(ignored -> getReadRequest())
+                .map(this::callHistoryApi)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::handleDataReadResult,
+                        (Throwable e) -> {
+                            Log.d(TAG, "Throwable " + e.getLocalizedMessage());
+                        }
+                );
+    }
+
+    private void handleDataReadResult(DataReadResult dataReadResult) {
+        //Used for aggregated data
+        if (dataReadResult.getBuckets().size() > 0) {
+            Log.d("History", "Number of buckets: " +
+                    dataReadResult.getBuckets().size());
+            for (Bucket bucket : dataReadResult.getBuckets()) {
+                List<DataSet> dataSets = bucket.getDataSets();
+                for (DataSet dataSet : dataSets) {
+                    showDataSet(dataSet);
+                }
+            }
+        } else {
+            Log.d("History", "Number of buckets:0 ");
+        }
+        //Used for non-aggregated data
+        if (dataReadResult.getDataSets().size() > 0) {
+            Log.d("History", "Number of returned DataSets: " +
+                    dataReadResult.getDataSets().size());
+            for (DataSet dataSet : dataReadResult.getDataSets()) {
+                showDataSet(dataSet);
+            }
+        } else {
+            Log.d("History", "Number of dataReadResult.getDataSets():0 ");
+        }
+    }
+
+    private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
+        Log.d(TAG, "calling HistoryApi");
+        // Invoke the History API to fetch the data with the query and await the result of
+        // the read request.
+        return Fitness.HistoryApi.readData(mClient, dataReadRequest)
+                .await(AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
+
+    }
+
+    private DataReadRequest getReadRequest() {
         Calendar cal = Calendar.getInstance();
         Date now = new Date();
         cal.setTime(now);
         long endTime = cal.getTimeInMillis();
-        cal.add(Calendar.MINUTE, -MINUTE_UPDATE_PERIOD);
+        cal.add(Calendar.SECOND, -CHECKED_PERIOD_SECOND);
         long startTime = cal.getTimeInMillis();
 
-        java.text.DateFormat dateFormat = DateFormat.getDateTimeInstance();
         Log.d("History", "Range Start: " + dateFormat.format(startTime));
         Log.d("History", "Range End: " + dateFormat.format(endTime));
-        final DataSource ds = new DataSource.Builder()
-                .setAppPackageName("com.google.android.gms")
-                .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
-                .setType(DataSource.TYPE_DERIVED)
-                .setStreamName("estimated_steps")
-                .build();
+
         //Check how many steps were walked and recorded in the last 7 days
-        final DataReadRequest readRequest = new DataReadRequest.Builder()
+        return new DataReadRequest.Builder()
                 // The data request can specify multiple data types to return, effectively
                 // combining multiple data queries into one call.
                 // In this example, it's very unlikely that the request is for several hundred
                 // data points each consisting of a few steps and a timestamp.  The more likely
                 // scenario is wanting to see how many steps were walked per day, for 7 days.
-                .aggregate(ds, DataType.AGGREGATE_STEP_COUNT_DELTA)
+                .aggregate(DataType.TYPE_STEP_COUNT_DELTA, DataType.AGGREGATE_STEP_COUNT_DELTA)
+                .bucketByTime(1, TimeUnit.DAYS)
                 .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
                 .build();
-
-        Observable.just(readRequest)
-                .map(new Function<DataReadRequest, DataReadResult>() {
-                    @Override
-                    public DataReadResult apply(DataReadRequest dataReadRequest) throws Exception {
-                        // Invoke the History API to fetch the data with the query and await the result of
-                        // the read request.
-                        return Fitness.HistoryApi.readData(mClient, readRequest).await(1, TimeUnit.MINUTES);
-                    }
-                })
-                .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(
-                new Observer<DataReadResult>() {
-                    @Override
-                    public void onSubscribe(Disposable d) {
-
-                    }
-
-                    @Override
-                    public void onNext(DataReadResult dataReadResult) {
-                        //Used for aggregated data
-                        if (dataReadResult.getBuckets().size() > 0) {
-                            Log.d("History", "Number of buckets: " + dataReadResult.getBuckets().size());
-                            for (Bucket bucket : dataReadResult.getBuckets()) {
-                                List<DataSet> dataSets = bucket.getDataSets();
-                                for (DataSet dataSet : dataSets) {
-                                    showDataSet(dataSet);
-                                }
-                            }
-                        }
-                        //Used for non-aggregated data
-                        else if (dataReadResult.getDataSets().size() > 0) {
-                            Log.d("History", "Number of returned DataSets: " + dataReadResult.getDataSets().size());
-                            for (DataSet dataSet : dataReadResult.getDataSets()) {
-                                showDataSet(dataSet);
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-
-                    }
-
-                    @Override
-                    public void onComplete() {
-
-                    }
-                }
-        );
     }
 
     private void showDataSet(DataSet dataSet) {
@@ -221,6 +222,11 @@ public class MainActivity extends AppCompatActivity {
             for (Field field : dp.getDataType().getFields()) {
                 Log.d("History", "\tField: " + field.getName() +
                         " Value: " + dp.getValue(field));
+                int count = dp.getValue(field).asInt();
+                if (field.getName().equals("steps") && count > COUNT_STEPS_WALKING) {
+                    sendNotification("Steps = " + count);
+                    return;
+                }
             }
         }
     }
@@ -269,14 +275,11 @@ public class MainActivity extends AppCompatActivity {
                     findViewById(R.id.main_activity_view),
                     R.string.permission_rationale,
                     Snackbar.LENGTH_INDEFINITE)
-                    .setAction(R.string.ok, new View.OnClickListener() {
-                        @Override
-                        public void onClick(View view) {
-                            // Request permission
-                            ActivityCompat.requestPermissions(MainActivity.this,
-                                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                                    REQUEST_PERMISSIONS_REQUEST_CODE);
-                        }
+                    .setAction(R.string.ok, view -> {
+                        // Request permission
+                        ActivityCompat.requestPermissions(MainActivity.this,
+                                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                REQUEST_PERMISSIONS_REQUEST_CODE);
                     })
                     .show();
         } else {
@@ -293,7 +296,6 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Callback received when a permissions request has been completed.
      */
-    @SuppressLint("WrongViewCast")
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -307,36 +309,77 @@ public class MainActivity extends AppCompatActivity {
                 // Permission was granted.
                 buildFitnessClient();
             } else {
-                // Permission denied.
-                // In this Activity we've chosen to notify the user that they
-                // have rejected a core permission for the app since it makes the Activity useless.
-                // We're communicating this message in a Snackbar since this is a sample app, but
-                // core permissions would typically be best requested during a welcome-screen flow.
-                // Additionally, it is important to remember that a permission might have been
-                // rejected without asking the user for permission (device policy or "Never ask
-                // again" prompts). Therefore, a user interface affordance is typically implemented
-                // when permissions are denied. Otherwise, your app could appear unresponsive to
-                // touches or interactions which have required permissions.
-                Snackbar.make(
-                        findViewById(R.id.main_activity_view),
-                        R.string.permission_denied_explanation,
-                        Snackbar.LENGTH_INDEFINITE)
-                        .setAction(R.string.settings, new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                // Build intent that displays the App settings screen.
-                                Intent intent = new Intent();
-                                intent.setAction(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                                Uri uri = Uri.fromParts("package",
-                                        BuildConfig.APPLICATION_ID, null);
-                                intent.setData(uri);
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                startActivity(intent);
-                            }
-                        })
-                        .show();
+                onPermissionDenied();
             }
         }
+    }
+
+    @SuppressLint("WrongViewCast")
+    private void onPermissionDenied() {
+        // Permission denied.
+        // In this Activity we've chosen to notify the user that they
+        // have rejected a core permission for the app since it makes the Activity useless.
+        // We're communicating this message in a Snackbar since this is a sample app, but
+        // core permissions would typically be best requested during a welcome-screen flow.
+        // Additionally, it is important to remember that a permission might have been
+        // rejected without asking the user for permission (device policy or "Never ask
+        // again" prompts). Therefore, a user interface affordance is typically implemented
+        // when permissions are denied. Otherwise, your app could appear unresponsive to
+        // touches or interactions which have required permissions.
+        Snackbar.make(
+                findViewById(R.id.main_activity_view),
+                R.string.permission_denied_explanation,
+                Snackbar.LENGTH_INDEFINITE)
+                .setAction(R.string.settings, view -> {
+                    // Build intent that displays the App settings screen.
+                    Intent intent = new Intent();
+                    intent.setAction(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package",
+                            BuildConfig.APPLICATION_ID, null);
+                    intent.setData(uri);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                })
+                .show();
+    }
+
+    /**
+     * Posts a notification in the notification bar when a transition is detected.
+     * If the user clicks the notification, control goes to the MainActivity.
+     */
+    private void sendNotification(String notificationDetails) {
+        Log.d(TAG, "sendNotification " + notificationDetails);
+        // Create an explicit content Intent that starts the main Activity.
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.putExtra("notificationDetails", notificationDetails);
+
+        // Construct a task stack.
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+
+        // Push the content Intent onto the stack.
+        stackBuilder.addNextIntent(notificationIntent);
+
+        // Get a PendingIntent containing the entire back stack.
+        PendingIntent notificationPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // Get a notification builder that's compatible with platform versions >= 4
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+
+        // Define the notification settings.
+        builder.setSmallIcon(R.drawable.ic_directions_walk_black_24dp)
+                .setColor(Color.RED)
+                .setContentTitle(getString(R.string.walking_detected))
+                .setContentText(notificationDetails)//getString(R.string.geofence_transition_notification_text))
+                .setContentIntent(notificationPendingIntent);
+
+        // Dismiss notification once the user touches it.
+        builder.setAutoCancel(true);
+
+        // Get an instance of the Notification manager
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        // Issue the notification
+        mNotificationManager.notify(0, builder.build());
     }
 }
