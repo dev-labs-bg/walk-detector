@@ -21,7 +21,11 @@ limitations under the License.
                 android:padding="16dp"
                 tools:context=".MainActivity">
     <TextView
+        android:layout_centerInParent="true"
         android:id="@+id/text_view"
+        android:textSize="20sp"
+        android:gravity="center_horizontal"
+        android:text="@string/greeting_home"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
 </RelativeLayout>

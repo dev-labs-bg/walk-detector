@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name">BasicSensorsApi</string>
     <string name="intro_text">Hi! Let\'s listen to some available data sources! Check the menu for more actions!</string>
-    <string name="action_unregister_listener">Stop listening</string>
-    <string name="action_register_listener">Start listening</string>
+    <string name="action_unregister_listener">Stop the detector</string>
+    <string name="action_register_listener">Start the detector</string>
     <string name="action_settings">Settings</string>
     <string name="permission_rationale">Location data is used as part of the Google Fit API</string>
     <string name="permission_denied_explanation">Permission was denied, but is needed for core
@@ -11,4 +11,7 @@
     <string name="settings">Settings</string>
     <string name="ok">OK</string>
     <string name="walking_detected">Walking detected</string>
+    <string name="should_track_status">should_track_status</string>
+    <string name="preference_file_key">WalkDetectorApp6372</string>
+    <string name="greeting_home">Use the menu to start or stop the Walking Detector :)</string>
 </resources>
