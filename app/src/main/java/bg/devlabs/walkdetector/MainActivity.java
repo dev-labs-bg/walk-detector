@@ -59,12 +59,14 @@ public class MainActivity extends AppCompatActivity {
     //how much will the app wait for response until a timeout exception is thrown
     private static final int AWAIT_PERIOD_SECOND = 60; // 60 seconds = 1 min
     //how ofter will we query the client for walking activity
-    private static final int OBSERVABLE_PERIOD_SECOND = CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
+    private static final int OBSERVABLE_PERIOD_SECOND = 10;//CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
     //Walking slow (2 mph)	67 steps per minute which is almost one step per second
     private static final int SLOW_WALKING_STEPS_PER_SECOND = 1;
-    private static final int COUNT_STEPS_WALKING = 10;//CHECKED_PERIOD_SECOND * SLOW_WALKING_STEPS_PER_SECOND;
+    private static final int COUNT_STEPS_WALKING = 0;//CHECKED_PERIOD_SECOND * SLOW_WALKING_STEPS_PER_SECOND;
     private GoogleApiClient mClient = null;
     TextView infoTextView;
+    MenuItem registerMenuItem;
+    MenuItem unregisterMenuItem;
     java.text.DateFormat dateTimeInstance = DateFormat.getDateTimeInstance();
     Disposable disposable;
 
@@ -146,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startTimerObservable() {
+        registerMenuItem.setEnabled(false);
         Log.d(TAG, "startTimerObservable: ");
         disposable = Observable.interval(OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
                 .startWith(0L)
@@ -206,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
                 // data points each consisting of a few steps and a timestamp.  The more likely
                 // scenario is wanting to see how many steps were walked per day, for 7 days.
                 .aggregate(DataType.TYPE_STEP_COUNT_DELTA, DataType.AGGREGATE_STEP_COUNT_DELTA)
-                .bucketByTime(1, TimeUnit.DAYS)
+                .bucketByTime(3, TimeUnit.DAYS)
                 .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
                 .build();
     }
@@ -238,17 +241,42 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        registerMenuItem = menu.findItem(R.id.action_register_listener);
+        unregisterMenuItem = menu.findItem(R.id.action_unregister_listener);
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_unregister_listener) {
+            unregisterMenuItem.setEnabled(false);
+            registerMenuItem.setEnabled(true);
             stopCheckingForWalking();
+            return true;
+        }
+        if (id == R.id.action_register_listener) {
+            registerMenuItem.setEnabled(false);
+            unregisterMenuItem.setEnabled(true);
+            startAlarm();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
+    private void startAlarm() {
+        buildFitnessClient();
+    }
+
     private void stopCheckingForWalking() {
-        disposable.dispose();
+        Log.d(TAG, "stopCheckingForWalking: disposable.dispose();");
+        if (disposable != null) {
+            disposable.dispose();
+        }
+        mClient.stopAutoManage(this);
+        mClient.disconnect();
+        mClient = null;
     }
 
     /**

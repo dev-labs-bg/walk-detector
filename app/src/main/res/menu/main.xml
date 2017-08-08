@@ -22,4 +22,9 @@ limitations under the License.
           android:title="@string/action_unregister_listener"
           android:orderInCategory="100"
           app:showAsAction="never" />
+
+    <item android:id="@+id/action_register_listener"
+          android:title="@string/action_register_listener"
+          android:orderInCategory="100"
+          app:showAsAction="never" />
 </menu>
