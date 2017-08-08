@@ -215,7 +215,6 @@ public class WalkDetectService extends Service {
         }
     }
 
-
     private void stopCheckingForWalking() {
         Log.d(TAG, "stopCheckingForWalking: disposable.dispose();");
         if (disposable != null) {
@@ -269,12 +268,6 @@ public class WalkDetectService extends Service {
 
         // Issue the notification
         mNotificationManager.notify(0, builder.build());
-    }
-
-    @Override
-    public void onDestroy() {
-        Log.d(TAG, "onDestroy: ");
-        super.onDestroy();
     }
 
     @Nullable

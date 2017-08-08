@@ -27,12 +27,14 @@ import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
  * The state can e changed from the three dot Menu
  */
 public class MainActivity extends AppCompatActivity {
+    // tag used for logging purposes
     public static final String TAG = "MainActivity";
+    // request code for permissions
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
     //the two menu items, this references are needed in order to update their state later
-    MenuItem registerMenuItem;
-    MenuItem unregisterMenuItem;
+    MenuItem startMenuItem;
+    MenuItem stopMenuItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,27 +51,33 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        registerMenuItem = menu.findItem(R.id.action_register_listener);
-        unregisterMenuItem = menu.findItem(R.id.action_unregister_listener);
-        fixButtonStates();
+        // binding the menu items
+        startMenuItem = menu.findItem(R.id.action_start_detector);
+        stopMenuItem = menu.findItem(R.id.action_stop_detector);
+        updateButtonStates();
         return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_unregister_listener) {
+        if (id == R.id.action_stop_detector) {
             stopDetection();
             return true;
         }
-        if (id == R.id.action_register_listener) {
+        if (id == R.id.action_start_detector) {
             startDetection();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-
+    /**
+     * Checks for permissions and request them if needed
+     * Updates menu items states
+     * Saves the new status to Shared Preferences
+     * Calls the WalkDetectService, which start detecting
+     */
     private void startDetection() {
         // When permissions are revoked the app is restarted so onCreate is sufficient to check for
         // permissions core to the Activity's functionality.
@@ -77,16 +85,20 @@ public class MainActivity extends AppCompatActivity {
             requestPermissions();
             return;
         }
-        enableStopDetectionMenuItem();
-
+        changeMenuItemsState(false, true);
         SharedPreferencesHelper.saveShouldDetectStatus(this, true);
         //starting the service with the startDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
         startService(intent);
     }
 
+    /**
+     * Updates menu items states
+     * Saves the new status to Shared Preferences
+     * Calls the WalkDetectService, which start detecting
+     */
     private void stopDetection() {
-        enableDetectionMenuItem();
+        changeMenuItemsState(true, false);
         SharedPreferencesHelper.saveShouldDetectStatus(this, false);
         //starting the service with the stopDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
@@ -94,24 +106,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Fixes button states depending on the saved to Shared preferences should detect status - true or false
+     * Updates button states depending on the saved to Shared preferences should detect status
      */
-    private void fixButtonStates() {
+    private void updateButtonStates() {
         if (SharedPreferencesHelper.shouldDetectWalking(this)) {
-            enableStopDetectionMenuItem();
+            changeMenuItemsState(false, true);
         } else {
-            enableDetectionMenuItem();
+            changeMenuItemsState(true, false);
         }
     }
 
-    private void enableDetectionMenuItem() {
-        registerMenuItem.setEnabled(true);
-        unregisterMenuItem.setEnabled(false);
-    }
-
-    private void enableStopDetectionMenuItem() {
-        registerMenuItem.setEnabled(false);
-        unregisterMenuItem.setEnabled(true);
+    /**
+     * Enables or disables menu items
+     *
+     * @param startMenuItemState if the start menu item should be enabled
+     * @param stopMenuItemState  if the stop menu item should be enabled
+     */
+    private void changeMenuItemsState(boolean startMenuItemState, boolean stopMenuItemState) {
+        startMenuItem.setEnabled(startMenuItemState);
+        stopMenuItem.setEnabled(stopMenuItemState);
     }
 
     /**
@@ -181,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
         // Permission denied.
         // In this Activity we've chosen to notify the user that they
         // have rejected a core permission for the app since it makes the Activity useless.
-        // We're communicating this message in a Snackbar since this is a sample app, but
+        // We're communicating this message in a Snack bar since this is a sample app, but
         // core permissions would typically be best requested during a welcome-screen flow.
         // Additionally, it is important to remember that a permission might have been
         // rejected without asking the user for permission (device policy or "Never ask

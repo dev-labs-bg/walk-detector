@@ -18,13 +18,13 @@ limitations under the License.
       xmlns:tools="http://schemas.android.com/tools"
       tools:context=".MainActivity" >
 
-    <item android:id="@+id/action_unregister_listener"
-          android:title="@string/action_unregister_listener"
+    <item android:id="@+id/action_stop_detector"
+          android:title="@string/action_stop_detector"
           android:orderInCategory="100"
           app:showAsAction="never" />
 
-    <item android:id="@+id/action_register_listener"
-          android:title="@string/action_register_listener"
+    <item android:id="@+id/action_start_detector"
+          android:title="@string/action_start_detector"
           android:orderInCategory="100"
           app:showAsAction="never" />
 </menu>
