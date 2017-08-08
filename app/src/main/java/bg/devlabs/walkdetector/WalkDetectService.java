@@ -6,6 +6,9 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
@@ -54,17 +57,27 @@ import io.reactivex.schedulers.Schedulers;
 
 public class WalkDetectService extends Service {
     public static final String TAG = "WalkDetectService";
-    //how long will the checked period be for walking activity
-    private static final int CHECKED_PERIOD_SECOND = 180000; //180 seconds = 3 minutes
-    //how much will the app wait for response until a timeout exception is thrown
+    // How long will the checked for walking activity period be
+    private static final int CHECKED_PERIOD_SECOND = 180; //180 seconds = 3 minutes
+    // How much will the app wait for response until a timeout exception is thrown
     private static final int AWAIT_PERIOD_SECOND = 60; // 60 seconds = 1 min
-    //how ofter will we query the client for walking activity
-    private static final int OBSERVABLE_PERIOD_SECOND = 10;//CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
-    //Walking slow (2 mph)	67 steps per minute which is almost one step per second
+    // How often will the app query the client for walking activity
+    private static final int OBSERVABLE_PERIOD_SECOND = CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
+    // Walking slow (2 mph)	67 steps per minute which is almost one step per second
     private static final int SLOW_WALKING_STEPS_PER_SECOND = 1;
-    private static final int COUNT_STEPS_WALKING = 1;//CHECKED_PERIOD_SECOND * SLOW_WALKING_STEPS_PER_SECOND;
+    // The calculated amount of steps if the user was walking during the checked period of time
+    // For example 180 seconds * 1 step at a second = 180 steps
+    // This value is used to determine if the user was walking trough the checked period of time
+    private static final int COUNT_STEPS_WALKING = CHECKED_PERIOD_SECOND * SLOW_WALKING_STEPS_PER_SECOND;
+
+    // Used to access the Fitness.HistoryApi
     static private GoogleApiClient mClient = null;
+
+    // Simple DateTimeFormat for logging and information showing purposes
     static private final java.text.DateFormat dateTimeInstance = DateFormat.getDateTimeInstance();
+
+    // Disposable from the interval Observable, which is disposed when the user no longer wants
+    // his status to be checked
     static private Disposable disposable;
 
     /**
@@ -75,6 +88,13 @@ public class WalkDetectService extends Service {
         super();
     }
 
+    /**
+     * Called by the system every time a client explicitly starts the service by calling startService(Intent)
+     * Checks the state and:
+     *  - if true starts the detection by building the client and connecting to it
+     *  - if false stops the detection by disposing the disposable and disconnecting from the client
+     * @return START_STICKY in order for the service not to die when the app dies
+     */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
@@ -91,10 +111,8 @@ public class WalkDetectService extends Service {
     /**
      * Build a {@link GoogleApiClient} that will authenticate the user and allow the application
      * to connect to Fitness APIs. The scopes included should match the scopes your app needs
-     * (see documentation for details). Authentication will occasionally fail intentionally,
-     * and in those cases, there will be a known resolution, which the OnConnectionFailedListener()
-     * can address. Examples of this include the user never having signed in before, or having
-     * multiple accounts on the device and needing to specify which account to use, etc.
+     * (see documentation for details).
+     *
      */
     private void buildFitnessClient() {
         if (mClient != null) {
@@ -109,6 +127,9 @@ public class WalkDetectService extends Service {
         mClient.connect();
     }
 
+    /**
+     * @return Connection callbacks for when the client is connected or the connection is suspended
+     */
     private ConnectionCallbacks getConnectionCallbacks() {
         return new GoogleApiClient.ConnectionCallbacks() {
             @Override
@@ -130,6 +151,20 @@ public class WalkDetectService extends Service {
         };
     }
 
+    /**
+     * Defines an interval based observable and subscribes to it.
+     *
+     * The subscription returns a disposable which later can be disposed
+     * when we no longer want to detect walking activity
+     *
+     * Uses .startWith(0L) in order to trigger onNext immediately
+     *
+     * The first result from interval is ignored as the computations don`t depend on the current index,
+     * but on the current moment
+     *
+     * On every "tick" of the interval the History API is queried
+     * Then the result is computed in handleDataReadResult
+     */
     private void startTimerObservable() {
         disposable = Observable.interval(OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
                 .startWith(0L)
@@ -144,30 +179,29 @@ public class WalkDetectService extends Service {
                 );
     }
 
+    /**
+     * Checks if the query result is containing any significant steps made in the last {@link #CHECKED_PERIOD_SECOND}
+     * @param dataReadResult returned from the Fitness.HistoryApi
+     */
     private void handleDataReadResult(DataReadResult dataReadResult) {
-        Log.d(TAG, "handleDataReadResult: ");
         //Used for aggregated data
         if (dataReadResult.getBuckets().size() > 0) {
-            Log.d("History", "Number of buckets: " +
-                    dataReadResult.getBuckets().size());
             for (Bucket bucket : dataReadResult.getBuckets()) {
                 List<DataSet> dataSets = bucket.getDataSets();
-                Log.d(TAG, "dataSets.size() = " + dataSets.size());
-
                 for (DataSet dataSet : dataSets) {
                     showDataSet(dataSet);
                 }
             }
-        } else {
-            Log.d("History", "Number of buckets:0 ");
         }
     }
 
+    /**
+     * Invoke the History API to fetch the data with the query and await the result of the read request.
+     * @param dataReadRequest user for the readData request
+     * @return DataReadResult returned fom the Fitness.HistoryApi
+     */
     private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
-        Log.d(TAG, "calling HistoryApi");
-        // Invoke the History API to fetch the data with the query and await the result of
-        // the read request.
-        return Fitness.HistoryApi.readData(mClient, dataReadRequest)
+       return Fitness.HistoryApi.readData(mClient, dataReadRequest)
                 .await(AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
 
     }
@@ -179,9 +213,6 @@ public class WalkDetectService extends Service {
         long endTime = cal.getTimeInMillis();
         cal.add(Calendar.SECOND, -CHECKED_PERIOD_SECOND);
         long startTime = cal.getTimeInMillis();
-
-        Log.d("History", "Range Start: " + dateTimeInstance.format(startTime));
-        Log.d("History", "Range End: " + dateTimeInstance.format(endTime));
 
         //Check how many steps were walked and recorded in the last 7 days
         return new DataReadRequest.Builder()
@@ -205,13 +236,23 @@ public class WalkDetectService extends Service {
                 Log.d("History", "\tField: " + field.getName() + " Value: " + dp.getValue(field));
                 int count = dp.getValue(field).asInt();
                 if (field.getName().equals("steps") && count > COUNT_STEPS_WALKING) {
-                    sendNotification("Steps = " + count
+                     sendNotification("Steps = " + count
                             + "\nFrom \t" + dateTimeInstance.format(dp.getStartTime(TimeUnit.MILLISECONDS))
                             + " to " + dateTimeInstance.format(dp.getEndTime(TimeUnit.MILLISECONDS))
                     );
                     return;
                 }
             }
+        }
+    }
+
+    private void playNotificationSound() {
+        try {
+            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+            r.play();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -231,6 +272,8 @@ public class WalkDetectService extends Service {
      * If the user clicks the notification, control goes to the MainActivity.
      */
     private void sendNotification(String message) {
+        playNotificationSound();
+
         Log.d(TAG, "sendNotification " + message);
         // Create an explicit content Intent that starts the main Activity.
         Intent notificationIntent = getPackageManager().getLaunchIntentForPackage("com.charitymilescm.android");
