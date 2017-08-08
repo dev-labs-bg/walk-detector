@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         }
         enableStopDetectionMenuItem();
 
-        SharedPreferencesHelper.saveTrackStatusPrefs(this, true);
+        SharedPreferencesHelper.saveShouldDetectStatus(this, true);
         //starting the service with the startDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
         startService(intent);
@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopDetection() {
         enableDetectionMenuItem();
-        SharedPreferencesHelper.saveTrackStatusPrefs(this, false);
+        SharedPreferencesHelper.saveShouldDetectStatus(this, false);
         //starting the service with the stopDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
         startService(intent);
@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
      * Fixes button states depending on the saved to Shared preferences should detect status - true or false
      */
     private void fixButtonStates() {
-        if (SharedPreferencesHelper.shouldTrack(this)) {
+        if (SharedPreferencesHelper.shouldDetectWalking(this)) {
             enableStopDetectionMenuItem();
         } else {
             enableDetectionMenuItem();

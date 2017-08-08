@@ -78,7 +78,7 @@ public class WalkDetectService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        if (SharedPreferencesHelper.shouldTrack(getApplicationContext())) {
+        if (SharedPreferencesHelper.shouldDetectWalking(getApplicationContext())) {
             buildFitnessClient();
         } else {
             stopCheckingForWalking();
