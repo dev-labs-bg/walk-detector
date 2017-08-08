@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">BasicSensorsApi</string>
     <string name="intro_text">Hi! Let\'s listen to some available data sources! Check the menu for more actions!</string>
-    <string name="action_unregister_listener">Unregister listener</string>
+    <string name="action_unregister_listener">Stop listening</string>
     <string name="action_settings">Settings</string>
     <string name="permission_rationale">Location data is used as part of the Google Fit API</string>
     <string name="permission_denied_explanation">Permission was denied, but is needed for core

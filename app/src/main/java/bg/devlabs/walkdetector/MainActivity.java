@@ -22,6 +22,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 /**
@@ -53,9 +55,9 @@ import io.reactivex.schedulers.Schedulers;
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "BasicSensorsApi";
     //how long will the checked period be for walking activity
-    private static final int CHECKED_PERIOD_SECOND = 180; //3 mins
+    private static final int CHECKED_PERIOD_SECOND = 180; //180 seconds = 3 minutes
     //how much will the app wait for response until a timeout exception is thrown
-    private static final int AWAIT_PERIOD_SECOND = 60; //1 min
+    private static final int AWAIT_PERIOD_SECOND = 60; // 60 seconds = 1 min
     //how ofter will we query the client for walking activity
     private static final int OBSERVABLE_PERIOD_SECOND = CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
     //Walking slow (2 mph)	67 steps per minute which is almost one step per second
@@ -64,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private GoogleApiClient mClient = null;
     TextView infoTextView;
     java.text.DateFormat dateFormat = DateFormat.getDateTimeInstance();
+    Disposable disposable;
 
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
@@ -98,47 +101,54 @@ public class MainActivity extends AppCompatActivity {
      * multiple accounts on the device and needing to specify which account to use, etc.
      */
     private void buildFitnessClient() {
-        if (mClient == null && checkPermissions()) {
-            mClient = new GoogleApiClient.Builder(this)
-                    .addApi(Fitness.HISTORY_API)
-                    .addScope(new Scope(Scopes.FITNESS_ACTIVITY_READ_WRITE))
-                    .addConnectionCallbacks(
-                            new GoogleApiClient.ConnectionCallbacks() {
-                                @Override
-                                public void onConnected(Bundle bundle) {
-                                    startTimerObservable();
-                                }
-
-                                @Override
-                                public void onConnectionSuspended(int i) {
-                                    // If your connection to the sensor gets lost at some point,
-                                    // you'll be able to determine the reason and react to it here.
-                                    if (i == ConnectionCallbacks.CAUSE_NETWORK_LOST) {
-                                        Log.d(TAG, "Connection lost.  Cause: Network Lost.");
-                                    } else if (i
-                                            == ConnectionCallbacks.CAUSE_SERVICE_DISCONNECTED) {
-                                        Log.d(TAG,
-                                                "Connection lost.  Reason: Service Disconnected");
-                                    }
-                                }
-                            }
-                    )
-                    .enableAutoManage(this, 0, result -> {
-                        Log.d(TAG, "Google Play services connection failed. Cause: " +
-                                result.toString());
-                        Snackbar.make(
-                                MainActivity.this.findViewById(R.id.main_activity_view),
-                                "Exception while connecting to Google Play services: " +
-                                        result.getErrorMessage(),
-                                Snackbar.LENGTH_INDEFINITE).show();
-                    })
-                    .build();
+        if (mClient != null || !checkPermissions()) {
+            return;
         }
+        ConnectionCallbacks connectionCallbacks = getConnectionCallbacks();
+        mClient = new GoogleApiClient.Builder(this)
+                .addApi(Fitness.HISTORY_API)
+                .addScope(new Scope(Scopes.FITNESS_ACTIVITY_READ_WRITE))
+                .addConnectionCallbacks(connectionCallbacks)
+                .enableAutoManage(this, 0, this::onClientConnectFail)
+                .build();
+    }
+
+    private void onClientConnectFail(ConnectionResult result) {
+        Log.d(TAG, "Google Play services connection failed. Cause: " +
+                result.toString());
+        Snackbar.make(
+                MainActivity.this.findViewById(R.id.main_activity_view),
+                "Exception while connecting to Google Play services: " +
+                        result.getErrorMessage(),
+                Snackbar.LENGTH_INDEFINITE).show();
+    }
+
+    private ConnectionCallbacks getConnectionCallbacks() {
+        return new GoogleApiClient.ConnectionCallbacks() {
+            @Override
+            public void onConnected(Bundle bundle) {
+                startTimerObservable();
+            }
+
+            @Override
+            public void onConnectionSuspended(int i) {
+                // If your connection to the sensor gets lost at some point,
+                // you'll be able to determine the reason and react to it here.
+                if (i == ConnectionCallbacks.CAUSE_NETWORK_LOST) {
+                    Log.d(TAG, "Connection lost.  Cause: Network Lost.");
+                } else if (i
+                        == ConnectionCallbacks.CAUSE_SERVICE_DISCONNECTED) {
+                    Log.d(TAG,
+                            "Connection lost.  Reason: Service Disconnected");
+                }
+            }
+        };
     }
 
     private void startTimerObservable() {
         Log.d(TAG, "startTimerObservable: ");
-        Observable.interval(OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
+        disposable = Observable.interval(OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
+                .startWith(0L)
                 .map(ignored -> getReadRequest())
                 .map(this::callHistoryApi)
                 .subscribeOn(Schedulers.io())
@@ -157,6 +167,8 @@ public class MainActivity extends AppCompatActivity {
                     dataReadResult.getBuckets().size());
             for (Bucket bucket : dataReadResult.getBuckets()) {
                 List<DataSet> dataSets = bucket.getDataSets();
+                    Log.d(TAG, "dataSets.size() = " + dataSets.size());
+
                 for (DataSet dataSet : dataSets) {
                     showDataSet(dataSet);
                 }
@@ -213,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d("History", "Data returned for Data type: " + dataSet.getDataType().getName());
         DateFormat dateFormat = DateFormat.getDateInstance();
         DateFormat timeFormat = DateFormat.getTimeInstance();
-
+        Log.d("History", "dataSet.getDataPoints().size = " + dataSet.getDataPoints().size());
         for (DataPoint dp : dataSet.getDataPoints()) {
             Log.d("History", "Data point:");
             Log.d("History", "\tType: " + dp.getDataType().getName());
@@ -249,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void stopCheckingForWalking() {
-        //TODO implement
+        disposable.dispose();
     }
 
     /**
