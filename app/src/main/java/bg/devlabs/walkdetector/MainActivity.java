@@ -28,43 +28,17 @@ import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
  */
 public class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
+    private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
+
     //the two menu items, this references are needed in order to update their state later
     MenuItem registerMenuItem;
     MenuItem unregisterMenuItem;
 
-    private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Put application specific code here.
-
         setContentView(R.layout.activity_main);
     }
-
-    private void fixButtonStates() {
-        if (SharedPreferencesHelper.shouldTrack(this)) {
-            unregisterMenuItem.setEnabled(true);
-            registerMenuItem.setEnabled(false);
-        } else {
-            registerMenuItem.setEnabled(true);
-            unregisterMenuItem.setEnabled(false);
-        }
-    }
-
-    private void buildFitnessClient() {
-        // When permissions are revoked the app is restarted so onCreate is sufficient to check for
-        // permissions core to the Activity's functionality.
-        if (!checkPermissions()) {
-            requestPermissions();
-            return;
-        }
-        SharedPreferencesHelper.saveTrackStatusPrefs(this, true);
-        //starting the service with the buildFitnessClient command
-        Intent intent = new Intent(this, WalkDetectService.class);
-        startService(intent);
-    }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -85,25 +59,59 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_unregister_listener) {
-            unregisterMenuItem.setEnabled(false);
-            registerMenuItem.setEnabled(true);
-            stopCheckingForWalking();
+            stopDetection();
             return true;
         }
         if (id == R.id.action_register_listener) {
-            registerMenuItem.setEnabled(false);
-            unregisterMenuItem.setEnabled(true);
-            buildFitnessClient();
+            startDetection();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void stopCheckingForWalking() {
-        SharedPreferencesHelper.saveTrackStatusPrefs(this, false);
-        //starting the service with the stopCheckingForWalking command
+
+    private void startDetection() {
+        // When permissions are revoked the app is restarted so onCreate is sufficient to check for
+        // permissions core to the Activity's functionality.
+        if (!checkPermissions()) {
+            requestPermissions();
+            return;
+        }
+        enableStopDetectionMenuItem();
+
+        SharedPreferencesHelper.saveTrackStatusPrefs(this, true);
+        //starting the service with the startDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
         startService(intent);
+    }
+
+    private void stopDetection() {
+        enableDetectionMenuItem();
+        SharedPreferencesHelper.saveTrackStatusPrefs(this, false);
+        //starting the service with the stopDetection command
+        Intent intent = new Intent(this, WalkDetectService.class);
+        startService(intent);
+    }
+
+    /**
+     * Fixes button states depending on the saved to Shared preferences should detect status - true or false
+     */
+    private void fixButtonStates() {
+        if (SharedPreferencesHelper.shouldTrack(this)) {
+            enableStopDetectionMenuItem();
+        } else {
+            enableDetectionMenuItem();
+        }
+    }
+
+    private void enableDetectionMenuItem() {
+        registerMenuItem.setEnabled(true);
+        unregisterMenuItem.setEnabled(false);
+    }
+
+    private void enableStopDetectionMenuItem() {
+        registerMenuItem.setEnabled(false);
+        unregisterMenuItem.setEnabled(true);
     }
 
     /**
@@ -161,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "User interaction was cancelled.");
             } else if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Permission was granted.
-                buildFitnessClient();
+                startDetection();
             } else {
                 onPermissionDenied();
             }
