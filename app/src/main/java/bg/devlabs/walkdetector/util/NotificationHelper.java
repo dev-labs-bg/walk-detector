@@ -16,7 +16,10 @@ import bg.devlabs.walkdetector.MainActivity;
 import bg.devlabs.walkdetector.R;
 
 /**
- * Created by simona on 8/9/17.
+ * Created by Simona Stoyanova on 8/9/17.
+ * simona@devlabs.bg
+ * <p>
+ * A helper class which simplifies Shared preference read/write operations
  */
 
 public class NotificationHelper {
@@ -71,6 +74,10 @@ public class NotificationHelper {
         mNotificationManager.notify(0, builder.build());
     }
 
+    /**
+     * Plays the default notification sound
+     * @param context needed to get the notification ringtone from RingtoneManager
+     */
     private static void playNotificationSound(Context context) {
         try {
             Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
