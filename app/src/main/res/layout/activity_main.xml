@@ -27,6 +27,7 @@ limitations under the License.
 
     <TextView
         android:id="@+id/label_text_view"
+        android:layout_centerHorizontal="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:hint="@string/checked_period_in_seconds"/>
@@ -34,13 +35,17 @@ limitations under the License.
     <EditText
         android:id="@+id/checked_period_edit_text"
         android:layout_width="wrap_content"
+        android:layout_centerHorizontal="true"
         android:layout_height="wrap_content"
+        android:inputType="number"
         android:layout_below="@+id/label_text_view"
         android:minWidth="180dp"
         tools:text="180"/>
 
     <Button
+        android:id="@+id/update_check_period_button"
         android:layout_width="wrap_content"
+        android:layout_centerHorizontal="true"
         android:layout_height="wrap_content"
         android:layout_below="@+id/checked_period_edit_text"
         android:backgroundTint="@color/md_blue_500"

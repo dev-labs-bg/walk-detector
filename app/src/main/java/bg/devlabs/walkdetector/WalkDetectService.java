@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import bg.devlabs.walkdetector.util.NotificationHelper;
+import bg.devlabs.walkdetector.util.SettingsManager;
 import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -147,7 +148,7 @@ public class WalkDetectService extends Service {
      * Then the result is computed in handleDataReadResult
      */
     private void startTimerObservable() {
-        disposable = Observable.interval(SettingsManager.OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
+        disposable = Observable.interval(SettingsManager.getInstance(this).OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
                 .startWith(0L)
                 .map(ignored -> getReadRequest())
                 .map(this::callHistoryApi)
@@ -161,7 +162,8 @@ public class WalkDetectService extends Service {
     }
 
     /**
-     * Checks if the query result is containing any significant steps made in the last {@link @SettingsManager#CHECKED_PERIOD_SECOND}
+     * Checks if the query result is containing any significant steps made in the last
+     * {@link @SettingsManager#CHECKED_PERIOD_SECOND}
      *
      * @param dataReadResult returned from the Fitness.HistoryApi
      */
@@ -185,7 +187,7 @@ public class WalkDetectService extends Service {
      */
     private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
         return Fitness.HistoryApi.readData(mClient, dataReadRequest)
-                .await(SettingsManager.AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
+                .await(SettingsManager.getInstance(this).AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
 
     }
 
@@ -194,7 +196,7 @@ public class WalkDetectService extends Service {
         Date now = new Date();
         cal.setTime(now);
         long endTime = cal.getTimeInMillis();
-        cal.add(Calendar.SECOND, -SettingsManager.CHECKED_PERIOD_SECOND);
+        cal.add(Calendar.SECOND, -SettingsManager.getInstance(this).CHECKED_PERIOD_SECOND);
         long startTime = cal.getTimeInMillis();
 
         //Check how many steps were walked and recorded in the last 7 days
@@ -218,7 +220,7 @@ public class WalkDetectService extends Service {
             for (Field field : dp.getDataType().getFields()) {
                 Log.d("History", "\tField: " + field.getName() + " Value: " + dp.getValue(field));
                 int count = dp.getValue(field).asInt();
-                if (field.getName().equals("steps") && count > SettingsManager.COUNT_STEPS_WALKING) {
+                if (field.getName().equals("steps") && count > SettingsManager.getInstance(this).COUNT_STEPS_WALKING) {
                     String message = "Steps = " + count
                             + "\nFrom \t" + dateTimeInstance.format(dp.getStartTime(TimeUnit.MILLISECONDS))
                             + " to " + dateTimeInstance.format(dp.getEndTime(TimeUnit.MILLISECONDS));

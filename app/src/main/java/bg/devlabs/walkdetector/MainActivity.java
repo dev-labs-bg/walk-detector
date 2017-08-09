@@ -2,6 +2,7 @@ package bg.devlabs.walkdetector;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.AnimatedVectorDrawable;
@@ -14,8 +15,12 @@ import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.Toast;
 
+import bg.devlabs.walkdetector.util.SettingsManager;
 import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -50,15 +55,18 @@ public class MainActivity extends AppCompatActivity {
         showCurrentState();
     }
 
+    /**
+     * Shows the saved check period edit text
+     * Shows the correct state of the FAB depending on if the detector is started or stopped
+     */
     private void showCurrentState() {
-        checkedPeriodEditText.setText(String.valueOf(SettingsManager.CHECKED_PERIOD_SECOND));
+        checkedPeriodEditText.setText(String.valueOf(SettingsManager.getInstance(this).CHECKED_PERIOD_SECOND));
         updateButtonStates();
     }
 
-
     /**
      * Checks for permissions and request them if needed
-     * Updates menu items states
+     * Updates button icon to stop
      * Saves the new status to Shared Preferences
      * Calls the WalkDetectService, which start detecting
      */
@@ -76,6 +84,9 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
     }
 
+    /**
+     * Animates start icon to stop icon
+     */
     private void showStopIcon() {
         AnimatedVectorDrawable animatedVectorDrawable =
                 (AnimatedVectorDrawable) getDrawable(R.drawable.avd_play_to_stop);
@@ -85,6 +96,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Animates stop icon to start icon
+     */
     private void showPlayIcon() {
         AnimatedVectorDrawable animatedVectorDrawable =
                 (AnimatedVectorDrawable) getDrawable(R.drawable.avd_stop_to_play);
@@ -95,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Updates menu items states
+     * Updates button icon to start
      * Saves the new status to Shared Preferences
      * Calls the WalkDetectService, which start detecting
      */
@@ -212,13 +226,53 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    @OnClick(R.id.detector_fab)
-    public void onViewClicked() {
+    @OnClick({R.id.update_check_period_button, R.id.detector_fab})
+    public void onViewClicked(View view) {
+        switch (view.getId()) {
+            case R.id.update_check_period_button:
+                onUpdateButtonClicked();
+                break;
+            case R.id.detector_fab:
+                onDetectorStateFabClicked();
+                break;
+        }
+    }
+
+    /**
+     * Stops or starts detection depending on the current state
+     */
+    private void onDetectorStateFabClicked() {
         if (shouldDetect) {
             stopDetection();
         } else {
             startDetection();
         }
         shouldDetect = !shouldDetect;
+    }
+
+    private void onUpdateButtonClicked() {
+        checkedPeriodEditText.clearFocus();
+        hideKeyboard();
+        try {
+            int checkPeriod = Integer.valueOf(checkedPeriodEditText.getText().toString());
+            if (checkPeriod < 60) {
+                Toast.makeText(this, R.string.error_check_period_too_short, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            SettingsManager.getInstance(this).saveNewCheckPeriod(this,checkPeriod);
+            Toast.makeText(this, R.string.check_period_updated, Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.error_parsing_check_period, Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+    private void hideKeyboard() {
+        // Check if no view has focus:
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
     }
 }
