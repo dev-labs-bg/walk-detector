@@ -16,11 +16,11 @@ public class SettingsManager {
     // How long will the checked for walking activity period be
     public int CHECKED_PERIOD_SECOND = 180; //180 seconds = 3 minutes
     // How much will the app wait for response until a timeout exception is thrown
-    public final int AWAIT_PERIOD_SECOND = 60; // 60 seconds = 1 min
+    public static final int AWAIT_PERIOD_SECOND = 60; // 60 seconds = 1 min
     // How often will the app query the client for walking activity
     public int OBSERVABLE_PERIOD_SECOND = CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
     // Walking slow (2 mph)	67 steps per minute which is almost one step per second
-    private final int SLOW_WALKING_STEPS_PER_SECOND = 1;
+    private static final int SLOW_WALKING_STEPS_PER_SECOND = 1;
     // The calculated amount of steps if the user was walking during the checked period of time
     // For example 180 seconds * 1 step at a second = 180 steps
     // This value is used to determine if the user was walking trough the checked period of time

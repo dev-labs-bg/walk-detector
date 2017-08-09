@@ -155,9 +155,7 @@ public class WalkDetectService extends Service {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::handleDataReadResult,
-                        (Throwable e) -> {
-                            Log.d(TAG, "Throwable " + e.getLocalizedMessage());
-                        }
+                        (Throwable e) -> Log.d(TAG, "Throwable " + e.getLocalizedMessage())
                 );
     }
 
@@ -173,7 +171,7 @@ public class WalkDetectService extends Service {
             for (Bucket bucket : dataReadResult.getBuckets()) {
                 List<DataSet> dataSets = bucket.getDataSets();
                 for (DataSet dataSet : dataSets) {
-                    showDataSet(dataSet);
+                    checkDataForWalkActivity(dataSet);
                 }
             }
         }
@@ -187,10 +185,15 @@ public class WalkDetectService extends Service {
      */
     private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
         return Fitness.HistoryApi.readData(mClient, dataReadRequest)
-                .await(SettingsManager.getInstance(this).AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
+                .await(SettingsManager.AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
 
     }
 
+    /**
+     * Builds Read request depending on the current time
+     * Queries step count delta between the current moment and CHECKED_PERIOD_SECOND ago
+     * @return the DataReadRequest which can be used to Query the Fitness.HistoryApi
+     */
     private DataReadRequest getReadRequest() {
         Calendar cal = Calendar.getInstance();
         Date now = new Date();
@@ -212,7 +215,11 @@ public class WalkDetectService extends Service {
                 .build();
     }
 
-    private void showDataSet(DataSet dataSet) {
+    /**
+     * Checks for walking activity in the dataSet and if found shows a notification
+     * @param dataSet to be examined for walking activity
+     */
+    private void checkDataForWalkActivity(DataSet dataSet) {
         for (DataPoint dp : dataSet.getDataPoints()) {
             if (!dp.getDataType().getName().equals("com.google.step_count.delta")) {
                 break;

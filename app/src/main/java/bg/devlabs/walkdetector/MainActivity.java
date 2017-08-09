@@ -255,11 +255,10 @@ public class MainActivity extends AppCompatActivity {
         hideKeyboard();
         try {
             int checkPeriod = Integer.valueOf(checkedPeriodEditText.getText().toString());
-            if (checkPeriod < 60) {
-                Toast.makeText(this, R.string.error_check_period_too_short, Toast.LENGTH_SHORT).show();
-                return;
+            if (checkPeriod < 60 || checkPeriod > 600) {
+                Toast.makeText(this, R.string.error_check_period_not_recommended, Toast.LENGTH_SHORT).show();
             }
-            SettingsManager.getInstance(this).saveNewCheckPeriod(this,checkPeriod);
+            SettingsManager.getInstance(this).saveNewCheckPeriod(this, checkPeriod);
             Toast.makeText(this, R.string.check_period_updated, Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, R.string.error_parsing_check_period, Toast.LENGTH_SHORT).show();
@@ -271,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
         // Check if no view has focus:
         View view = this.getCurrentFocus();
         if (view != null) {
-            InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
             imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
         }
     }
