@@ -28,7 +28,7 @@ import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
  */
 public class MainActivity extends AppCompatActivity {
     // tag used for logging purposes
-    public static final String TAG = "MainActivity";
+    private static final String TAG = MainActivity.class.getSimpleName();
     // request code for permissions
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 

@@ -1,19 +1,10 @@
 package bg.devlabs.walkdetector;
 
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
-import android.support.v4.app.TaskStackBuilder;
-import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 
 import com.google.android.gms.common.Scopes;
@@ -35,6 +26,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import bg.devlabs.walkdetector.util.NotificationHelper;
 import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -56,7 +48,8 @@ import io.reactivex.schedulers.Schedulers;
  */
 
 public class WalkDetectService extends Service {
-    public static final String TAG = "WalkDetectService";
+    // tag used for logging purposes
+    private static final String TAG = WalkDetectService.class.getSimpleName();
     // How long will the checked for walking activity period be
     private static final int CHECKED_PERIOD_SECOND = 180; //180 seconds = 3 minutes
     // How much will the app wait for response until a timeout exception is thrown
@@ -91,8 +84,9 @@ public class WalkDetectService extends Service {
     /**
      * Called by the system every time a client explicitly starts the service by calling startService(Intent)
      * Checks the state and:
-     *  - if true starts the detection by building the client and connecting to it
-     *  - if false stops the detection by disposing the disposable and disconnecting from the client
+     * - if true starts the detection by building the client and connecting to it
+     * - if false stops the detection by disposing the disposable and disconnecting from the client
+     *
      * @return START_STICKY in order for the service not to die when the app dies
      */
     @Override
@@ -112,7 +106,6 @@ public class WalkDetectService extends Service {
      * Build a {@link GoogleApiClient} that will authenticate the user and allow the application
      * to connect to Fitness APIs. The scopes included should match the scopes your app needs
      * (see documentation for details).
-     *
      */
     private void buildFitnessClient() {
         if (mClient != null) {
@@ -153,15 +146,15 @@ public class WalkDetectService extends Service {
 
     /**
      * Defines an interval based observable and subscribes to it.
-     *
+     * <p>
      * The subscription returns a disposable which later can be disposed
      * when we no longer want to detect walking activity
-     *
+     * <p>
      * Uses .startWith(0L) in order to trigger onNext immediately
-     *
+     * <p>
      * The first result from interval is ignored as the computations don`t depend on the current index,
      * but on the current moment
-     *
+     * <p>
      * On every "tick" of the interval the History API is queried
      * Then the result is computed in handleDataReadResult
      */
@@ -181,6 +174,7 @@ public class WalkDetectService extends Service {
 
     /**
      * Checks if the query result is containing any significant steps made in the last {@link #CHECKED_PERIOD_SECOND}
+     *
      * @param dataReadResult returned from the Fitness.HistoryApi
      */
     private void handleDataReadResult(DataReadResult dataReadResult) {
@@ -197,11 +191,12 @@ public class WalkDetectService extends Service {
 
     /**
      * Invoke the History API to fetch the data with the query and await the result of the read request.
+     *
      * @param dataReadRequest user for the readData request
      * @return DataReadResult returned fom the Fitness.HistoryApi
      */
     private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
-       return Fitness.HistoryApi.readData(mClient, dataReadRequest)
+        return Fitness.HistoryApi.readData(mClient, dataReadRequest)
                 .await(AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
 
     }
@@ -236,25 +231,16 @@ public class WalkDetectService extends Service {
                 Log.d("History", "\tField: " + field.getName() + " Value: " + dp.getValue(field));
                 int count = dp.getValue(field).asInt();
                 if (field.getName().equals("steps") && count > COUNT_STEPS_WALKING) {
-                     sendNotification("Steps = " + count
+                    String message = "Steps = " + count
                             + "\nFrom \t" + dateTimeInstance.format(dp.getStartTime(TimeUnit.MILLISECONDS))
-                            + " to " + dateTimeInstance.format(dp.getEndTime(TimeUnit.MILLISECONDS))
-                    );
+                            + " to " + dateTimeInstance.format(dp.getEndTime(TimeUnit.MILLISECONDS));
+                    NotificationHelper.sendNotification(message, getApplicationContext());
                     return;
                 }
             }
         }
     }
 
-    private void playNotificationSound() {
-        try {
-            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-            Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
-            r.play();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     private void stopCheckingForWalking() {
         Log.d(TAG, "stopCheckingForWalking: disposable.dispose();");
@@ -267,51 +253,6 @@ public class WalkDetectService extends Service {
         }
     }
 
-    /**
-     * Posts a notification in the notification bar when a transition is detected.
-     * If the user clicks the notification, control goes to the MainActivity.
-     */
-    private void sendNotification(String message) {
-        playNotificationSound();
-
-        Log.d(TAG, "sendNotification " + message);
-        // Create an explicit content Intent that starts the main Activity.
-        Intent notificationIntent = getPackageManager().getLaunchIntentForPackage("com.charitymilescm.android");
-        if (notificationIntent == null) {
-            notificationIntent = new Intent(this, MainActivity.class);
-        }
-
-        notificationIntent.putExtra("notificationDetails", message);
-
-        // Construct a task stack.
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-
-        // Push the content Intent onto the stack.
-        stackBuilder.addNextIntent(notificationIntent);
-
-        // Get a PendingIntent containing the entire back stack.
-        PendingIntent notificationPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
-
-        // Get a notification builder that's compatible with platform versions >= 4
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-
-        // Define the notification settings.
-        builder.setSmallIcon(R.drawable.ic_directions_walk_black_24dp)
-                .setColor(Color.RED)
-                .setContentTitle(getString(R.string.walking_detected))
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
-                .setContentText(message)
-                .setContentIntent(notificationPendingIntent);
-
-        // Dismiss notification once the user touches it.
-        builder.setAutoCancel(true);
-
-        // Get an instance of the Notification manager
-        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-        // Issue the notification
-        mNotificationManager.notify(0, builder.build());
-    }
 
     @Nullable
     @Override
