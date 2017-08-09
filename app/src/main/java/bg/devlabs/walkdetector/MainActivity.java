@@ -1,10 +1,8 @@
 package bg.devlabs.walkdetector;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.drawable.AnimatedVectorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -12,14 +10,13 @@ import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import bg.devlabs.walkdetector.util.PermissionsHelper;
 import bg.devlabs.walkdetector.util.SettingsManager;
 import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
 import butterknife.BindView;
@@ -35,11 +32,9 @@ import butterknife.OnClick;
  * Once selected, the state is saved to shared preferences.
  * The state can e changed from the three dot Menu
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity  implements PermissionsHelper.PermissionResultListener {
     // tag used for logging purposes
     private static final String TAG = MainActivity.class.getSimpleName();
-    // request code for permissions
-    private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
     @BindView(R.id.checked_period_edit_text)
     EditText checkedPeriodEditText;
@@ -73,8 +68,8 @@ public class MainActivity extends AppCompatActivity {
     private void startDetection() {
         // When permissions are revoked the app is restarted so onCreate is sufficient to check for
         // permissions core to the Activity's functionality.
-        if (!checkPermissions()) {
-            requestPermissions();
+        if (!PermissionsHelper.checkPermissions(this)) {
+            PermissionsHelper.requestPermissions(this);
             return;
         }
         showStopIcon();
@@ -135,69 +130,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Return the current state of the permissions needed.
-     */
-    private boolean checkPermissions() {
-        int permissionState = ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION);
-        return permissionState == PackageManager.PERMISSION_GRANTED;
-    }
-
-    @SuppressLint("WrongViewCast")
-    private void requestPermissions() {
-        boolean shouldProvideRationale =
-                ActivityCompat.shouldShowRequestPermissionRationale(this,
-                        Manifest.permission.ACCESS_FINE_LOCATION);
-
-        // Provide an additional rationale to the user. This would happen if the user denied the
-        // request previously, but didn't check the "Don't ask again" checkbox.
-        if (shouldProvideRationale) {
-            Log.d(TAG, "Displaying permission rationale to provide additional context.");
-            Snackbar.make(
-                    findViewById(R.id.main_activity_view),
-                    R.string.permission_rationale,
-                    Snackbar.LENGTH_INDEFINITE)
-                    .setAction(R.string.ok, view -> {
-                        // Request permission
-                        ActivityCompat.requestPermissions(MainActivity.this,
-                                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                                REQUEST_PERMISSIONS_REQUEST_CODE);
-                    })
-                    .show();
-        } else {
-            Log.d(TAG, "Requesting permission");
-            // Request permission. It's possible this can be auto answered if device policy
-            // sets the permission in a given state or the user denied the permission
-            // previously and checked "Never ask again".
-            ActivityCompat.requestPermissions(MainActivity.this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    REQUEST_PERMISSIONS_REQUEST_CODE);
-        }
-    }
-
-    /**
      * Callback received when a permissions request has been completed.
      */
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        Log.d(TAG, "onRequestPermissionResult");
-        if (requestCode == REQUEST_PERMISSIONS_REQUEST_CODE) {
-            if (grantResults.length <= 0) {
-                // If user interaction was interrupted, the permission request is cancelled and you
-                // receive empty arrays.
-                Log.d(TAG, "User interaction was cancelled.");
-            } else if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission was granted.
-                startDetection();
-            } else {
-                onPermissionDenied();
-            }
-        }
+        PermissionsHelper.onRequestPermissionsResult(requestCode,grantResults, this);
+    }
+
+    @Override
+    public void onPermissionGranted() {
+        startDetection();
     }
 
     @SuppressLint("WrongViewCast")
-    private void onPermissionDenied() {
+    public void onPermissionDenied() {
         // Permission denied.
         // In this Activity we've chosen to notify the user that they
         // have rejected a core permission for the app since it makes the Activity useless.
