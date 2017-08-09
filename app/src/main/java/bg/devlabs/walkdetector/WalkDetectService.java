@@ -81,9 +81,27 @@ public class WalkDetectService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
+        Log.d(TAG, "onStartCommand: flags = " + flags);
+
+        if(intent.hasExtra("Alarm")){
+            if(intent.getStringExtra("Alarm").equals("start")){
+                Log.d(TAG, "onStartCommand: staring service");
+                SharedPreferencesHelper.saveShouldDetectStatus(getApplicationContext(),true);
+                buildFitnessClient();
+                return START_STICKY;
+            } else if(intent.getStringExtra("Alarm").equals("stop")){
+                Log.d(TAG, "onStartCommand: stopping service");
+                SharedPreferencesHelper.saveShouldDetectStatus(getApplicationContext(),false);
+                stopCheckingForWalking();
+                return START_STICKY;
+            }
+        }
+
         if (SharedPreferencesHelper.shouldDetectWalking(getApplicationContext())) {
+            Log.d(TAG, "onStartCommand: staring service");
             buildFitnessClient();
         } else {
+            Log.d(TAG, "onStartCommand: stopping service");
             stopCheckingForWalking();
         }
         //this service will run until we stop it
@@ -148,7 +166,7 @@ public class WalkDetectService extends Service {
      * Then the result is computed in handleDataReadResult
      */
     private void startTimerObservable() {
-        disposable = Observable.interval(SettingsManager.getInstance(this).OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
+        disposable = Observable.interval(SettingsManager.getInstance(this).observablePeriodSeconds, TimeUnit.SECONDS)
                 .startWith(0L)
                 .map(ignored -> getReadRequest())
                 .map(this::callHistoryApi)
@@ -161,7 +179,7 @@ public class WalkDetectService extends Service {
 
     /**
      * Checks if the query result is containing any significant steps made in the last
-     * {@link @SettingsManager#CHECKED_PERIOD_SECOND}
+     * {@link @SettingsManager#checkedPeriodSeconds}
      *
      * @param dataReadResult returned from the Fitness.HistoryApi
      */
@@ -185,13 +203,14 @@ public class WalkDetectService extends Service {
      */
     private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
         return Fitness.HistoryApi.readData(mClient, dataReadRequest)
-                .await(SettingsManager.AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
+                .await(SettingsManager.AWAIT_PERIOD_SECONDS, TimeUnit.SECONDS);
 
     }
 
     /**
      * Builds Read request depending on the current time
-     * Queries step count delta between the current moment and CHECKED_PERIOD_SECOND ago
+     * Queries step count delta between the current moment and checkedPeriodSeconds ago
+     *
      * @return the DataReadRequest which can be used to Query the Fitness.HistoryApi
      */
     private DataReadRequest getReadRequest() {
@@ -199,7 +218,7 @@ public class WalkDetectService extends Service {
         Date now = new Date();
         cal.setTime(now);
         long endTime = cal.getTimeInMillis();
-        cal.add(Calendar.SECOND, -SettingsManager.getInstance(this).CHECKED_PERIOD_SECOND);
+        cal.add(Calendar.SECOND, -SettingsManager.getInstance(this).checkedPeriodSeconds);
         long startTime = cal.getTimeInMillis();
 
         //Check how many steps were walked and recorded in the last 7 days
@@ -217,6 +236,7 @@ public class WalkDetectService extends Service {
 
     /**
      * Checks for walking activity in the dataSet and if found shows a notification
+     *
      * @param dataSet to be examined for walking activity
      */
     private void checkDataForWalkActivity(DataSet dataSet) {
@@ -227,7 +247,7 @@ public class WalkDetectService extends Service {
             for (Field field : dp.getDataType().getFields()) {
                 Log.d("History", "\tField: " + field.getName() + " Value: " + dp.getValue(field));
                 int count = dp.getValue(field).asInt();
-                if (field.getName().equals("steps") && count > SettingsManager.getInstance(this).COUNT_STEPS_WALKING) {
+                if (field.getName().equals("steps") && count > SettingsManager.getInstance(this).neededStepsCountForWalking) {
                     String message = "Steps = " + count
                             + "\nFrom \t" + dateTimeInstance.format(dp.getStartTime(TimeUnit.MILLISECONDS))
                             + " to " + dateTimeInstance.format(dp.getEndTime(TimeUnit.MILLISECONDS));

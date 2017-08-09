@@ -21,37 +21,115 @@ limitations under the License.
                 android:layout_height="match_parent"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
-                android:paddingStart="16dp"
-                android:paddingTop="16dp"
                 tools:context=".MainActivity">
 
     <TextView
         android:id="@+id/label_text_view"
-        android:layout_centerHorizontal="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
         android:hint="@string/checked_period_in_seconds"/>
 
     <EditText
         android:id="@+id/checked_period_edit_text"
         android:layout_width="wrap_content"
-        android:layout_centerHorizontal="true"
         android:layout_height="wrap_content"
-        android:inputType="number"
         android:layout_below="@+id/label_text_view"
+        android:layout_centerHorizontal="true"
+        android:inputType="number"
         android:minWidth="180dp"
         tools:text="180"/>
 
     <Button
         android:id="@+id/update_check_period_button"
         android:layout_width="wrap_content"
-        android:layout_centerHorizontal="true"
         android:layout_height="wrap_content"
         android:layout_below="@+id/checked_period_edit_text"
+        android:layout_centerHorizontal="true"
         android:backgroundTint="@color/md_blue_500"
         android:minWidth="180dp"
         android:text="@string/update"
         android:textColor="@color/md_white_1000"/>
+
+    <View
+        android:id="@+id/line1"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@+id/update_check_period_button"
+        android:layout_margin="16dp"
+        android:background="@color/md_grey_300"/>
+
+    <TextView
+        android:id="@+id/all_day_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/line1"
+        android:layout_marginStart="24dp"
+        android:text="@string/all_day"/>
+
+    <CheckBox
+        android:id="@+id/all_day_check_box"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/all_day_label"
+        android:layout_alignBottom="@+id/all_day_label"
+        android:layout_alignEnd="@+id/line2"
+        android:checked="true"/>
+
+    <View
+        android:id="@+id/line2"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@+id/all_day_label"
+        android:layout_margin="16dp"
+        android:background="@color/md_grey_300"/>
+
+    <LinearLayout
+        android:id="@+id/alarm_info_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/line2"
+        android:layout_centerHorizontal="true"
+        android:minWidth="180dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/start_time_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/start_time"/>
+
+        <EditText
+            android:id="@+id/start_time_edit_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="time"
+            tools:text="18:30"/>
+
+        <TextView
+            android:id="@+id/end_time_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="@string/end_time"/>
+
+        <EditText
+            android:id="@+id/end_time_edit_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="time"
+            tools:text="18:59"/>
+
+        <Button
+            android:id="@+id/set_alarm_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/md_blue_500"
+            android:minWidth="180dp"
+            android:text="@string/set_auto_turn_on_and_off"
+            android:textColor="@color/md_white_1000"/>
+    </LinearLayout>
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/detector_fab"

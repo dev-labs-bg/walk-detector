@@ -22,4 +22,11 @@
     <string name="error_check_period_not_recommended">We recommended period between 60 and 600 seconds</string>
     <string name="check_period_key">check_period_key</string>
     <string name="check_period_updated">Check period updated</string>
+    <string name="all_day">All day</string>
+    <string name="start_time">Auto start time</string>
+    <string name="end_time">Auto end time</string>
+    <string name="set_auto_turn_on_and_off">Set auto switch</string>
+    <string name="alarm_start_time_key">alarm_start_time_key</string>
+    <string name="alarm_end_time_key">alarm_end_time_key</string>
+    <string name="error_entered_invalid_time">The times are invalid. The format is 23:59</string>
 </resources>
