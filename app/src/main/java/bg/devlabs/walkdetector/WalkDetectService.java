@@ -50,18 +50,6 @@ import io.reactivex.schedulers.Schedulers;
 public class WalkDetectService extends Service {
     // tag used for logging purposes
     private static final String TAG = WalkDetectService.class.getSimpleName();
-    // How long will the checked for walking activity period be
-    private static final int CHECKED_PERIOD_SECOND = 180; //180 seconds = 3 minutes
-    // How much will the app wait for response until a timeout exception is thrown
-    private static final int AWAIT_PERIOD_SECOND = 60; // 60 seconds = 1 min
-    // How often will the app query the client for walking activity
-    private static final int OBSERVABLE_PERIOD_SECOND = CHECKED_PERIOD_SECOND + AWAIT_PERIOD_SECOND;
-    // Walking slow (2 mph)	67 steps per minute which is almost one step per second
-    private static final int SLOW_WALKING_STEPS_PER_SECOND = 1;
-    // The calculated amount of steps if the user was walking during the checked period of time
-    // For example 180 seconds * 1 step at a second = 180 steps
-    // This value is used to determine if the user was walking trough the checked period of time
-    private static final int COUNT_STEPS_WALKING = CHECKED_PERIOD_SECOND * SLOW_WALKING_STEPS_PER_SECOND;
 
     // Used to access the Fitness.HistoryApi
     static private GoogleApiClient mClient = null;
@@ -159,7 +147,7 @@ public class WalkDetectService extends Service {
      * Then the result is computed in handleDataReadResult
      */
     private void startTimerObservable() {
-        disposable = Observable.interval(OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
+        disposable = Observable.interval(SettingsManager.OBSERVABLE_PERIOD_SECOND, TimeUnit.SECONDS)
                 .startWith(0L)
                 .map(ignored -> getReadRequest())
                 .map(this::callHistoryApi)
@@ -173,7 +161,7 @@ public class WalkDetectService extends Service {
     }
 
     /**
-     * Checks if the query result is containing any significant steps made in the last {@link #CHECKED_PERIOD_SECOND}
+     * Checks if the query result is containing any significant steps made in the last {@link @SettingsManager#CHECKED_PERIOD_SECOND}
      *
      * @param dataReadResult returned from the Fitness.HistoryApi
      */
@@ -197,7 +185,7 @@ public class WalkDetectService extends Service {
      */
     private DataReadResult callHistoryApi(DataReadRequest dataReadRequest) {
         return Fitness.HistoryApi.readData(mClient, dataReadRequest)
-                .await(AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
+                .await(SettingsManager.AWAIT_PERIOD_SECOND, TimeUnit.SECONDS);
 
     }
 
@@ -206,7 +194,7 @@ public class WalkDetectService extends Service {
         Date now = new Date();
         cal.setTime(now);
         long endTime = cal.getTimeInMillis();
-        cal.add(Calendar.SECOND, -CHECKED_PERIOD_SECOND);
+        cal.add(Calendar.SECOND, -SettingsManager.CHECKED_PERIOD_SECOND);
         long startTime = cal.getTimeInMillis();
 
         //Check how many steps were walked and recorded in the last 7 days
@@ -230,7 +218,7 @@ public class WalkDetectService extends Service {
             for (Field field : dp.getDataType().getFields()) {
                 Log.d("History", "\tField: " + field.getName() + " Value: " + dp.getValue(field));
                 int count = dp.getValue(field).asInt();
-                if (field.getName().equals("steps") && count > COUNT_STEPS_WALKING) {
+                if (field.getName().equals("steps") && count > SettingsManager.COUNT_STEPS_WALKING) {
                     String message = "Steps = " + count
                             + "\nFrom \t" + dateTimeInstance.format(dp.getStartTime(TimeUnit.MILLISECONDS))
                             + " to " + dateTimeInstance.format(dp.getEndTime(TimeUnit.MILLISECONDS));

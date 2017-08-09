@@ -4,18 +4,22 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.AnimatedVectorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.widget.EditText;
 
 import bg.devlabs.walkdetector.util.SharedPreferencesHelper;
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 /**
  * Created by Simona Stoyanova on 8/8/17.
@@ -32,45 +36,25 @@ public class MainActivity extends AppCompatActivity {
     // request code for permissions
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
 
-    //the two menu items, this references are needed in order to update their state later
-    MenuItem startMenuItem;
-    MenuItem stopMenuItem;
+    @BindView(R.id.checked_period_edit_text)
+    EditText checkedPeriodEditText;
+    @BindView(R.id.detector_fab)
+    FloatingActionButton detectorFab;
+    boolean shouldDetect;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
+        showCurrentState();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        // binding the menu items
-        startMenuItem = menu.findItem(R.id.action_start_detector);
-        stopMenuItem = menu.findItem(R.id.action_stop_detector);
+    private void showCurrentState() {
+        checkedPeriodEditText.setText(String.valueOf(SettingsManager.CHECKED_PERIOD_SECOND));
         updateButtonStates();
-        return super.onPrepareOptionsMenu(menu);
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_stop_detector) {
-            stopDetection();
-            return true;
-        }
-        if (id == R.id.action_start_detector) {
-            startDetection();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
 
     /**
      * Checks for permissions and request them if needed
@@ -85,11 +69,29 @@ public class MainActivity extends AppCompatActivity {
             requestPermissions();
             return;
         }
-        changeMenuItemsState(false, true);
+        showStopIcon();
         SharedPreferencesHelper.saveShouldDetectStatus(this, true);
         //starting the service with the startDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
         startService(intent);
+    }
+
+    private void showStopIcon() {
+        AnimatedVectorDrawable animatedVectorDrawable =
+                (AnimatedVectorDrawable) getDrawable(R.drawable.avd_play_to_stop);
+        if (animatedVectorDrawable != null) {
+            detectorFab.setImageDrawable(animatedVectorDrawable);
+            animatedVectorDrawable.start();
+        }
+    }
+
+    private void showPlayIcon() {
+        AnimatedVectorDrawable animatedVectorDrawable =
+                (AnimatedVectorDrawable) getDrawable(R.drawable.avd_stop_to_play);
+        if (animatedVectorDrawable != null) {
+            detectorFab.setImageDrawable(animatedVectorDrawable);
+            animatedVectorDrawable.start();
+        }
     }
 
     /**
@@ -98,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
      * Calls the WalkDetectService, which start detecting
      */
     private void stopDetection() {
-        changeMenuItemsState(true, false);
+        showPlayIcon();
         SharedPreferencesHelper.saveShouldDetectStatus(this, false);
         //starting the service with the stopDetection command
         Intent intent = new Intent(this, WalkDetectService.class);
@@ -110,21 +112,12 @@ public class MainActivity extends AppCompatActivity {
      */
     private void updateButtonStates() {
         if (SharedPreferencesHelper.shouldDetectWalking(this)) {
-            changeMenuItemsState(false, true);
+            shouldDetect = true;
+            detectorFab.setImageResource(R.drawable.ic_stop_white_24dp);
         } else {
-            changeMenuItemsState(true, false);
+            shouldDetect = false;
+            detectorFab.setImageResource(R.drawable.ic_play_arrow_white_24dp);
         }
-    }
-
-    /**
-     * Enables or disables menu items
-     *
-     * @param startMenuItemState if the start menu item should be enabled
-     * @param stopMenuItemState  if the stop menu item should be enabled
-     */
-    private void changeMenuItemsState(boolean startMenuItemState, boolean stopMenuItemState) {
-        startMenuItem.setEnabled(startMenuItemState);
-        stopMenuItem.setEnabled(stopMenuItemState);
     }
 
     /**
@@ -217,5 +210,15 @@ public class MainActivity extends AppCompatActivity {
                     startActivity(intent);
                 })
                 .show();
+    }
+
+    @OnClick(R.id.detector_fab)
+    public void onViewClicked() {
+        if (shouldDetect) {
+            stopDetection();
+        } else {
+            startDetection();
+        }
+        shouldDetect = !shouldDetect;
     }
 }

@@ -13,7 +13,7 @@ android {
     buildToolsVersion "25.0.3"
     defaultConfig {
         applicationId "bg.devlabs.walkdetector"
-        minSdkVersion 19
+        minSdkVersion 21
         targetSdkVersion 25
         versionCode 2
         versionName "1.0"

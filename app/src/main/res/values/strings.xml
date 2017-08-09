@@ -14,4 +14,8 @@
     <string name="should_track_status">should_track_status</string>
     <string name="preference_file_key">WalkDetectorApp6372</string>
     <string name="greeting_home">Use the menu to start or stop the Walking Detector :)</string>
+    <string name="checked_period_in_seconds">Checked period in seconds</string>
+    <string name="update">Update</string>
+    <string name="path_stop">M 6.0,6.0 h 12.0 v 12.0 l 0.0,0.0 H 6.0 L 6.0,6.0</string>
+    <string name="path_play">M 8.0,5.0 h 0.0 v 14.0 l 11.0,-7.0 H 19.0 L 8.0,5.0</string>
 </resources>
