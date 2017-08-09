@@ -241,7 +241,10 @@ public class WalkDetectService extends Service {
         }
     }
 
-
+    /**
+     * Disposes the disposable, so that the interval is stopped
+     * Disconnects the mClient
+     */
     private void stopCheckingForWalking() {
         Log.d(TAG, "stopCheckingForWalking: disposable.dispose();");
         if (disposable != null) {
