@@ -33,7 +33,6 @@ public class SettingsManager {
     //if there is an alarm set the detection will work from startTime to endTime
     public String startTime, endTime;
 
-
     public static SettingsManager getInstance(Context context) {
         if (ourInstance == null) {
             ourInstance = new SettingsManager(context);

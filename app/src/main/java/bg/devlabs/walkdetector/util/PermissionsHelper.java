@@ -11,6 +11,7 @@ import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 
 import bg.devlabs.walkdetector.R;
+
 /**
  * Created by Simona Stoyanova on 8/9/17.
  * simona@devlabs.bg
@@ -23,7 +24,6 @@ public class PermissionsHelper {
     private static final String TAG = PermissionsHelper.class.getSimpleName();
     // request code for permissions
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
-
 
     /**
      * Return the current state of the permissions needed.
@@ -39,7 +39,6 @@ public class PermissionsHelper {
         boolean shouldProvideRationale =
                 ActivityCompat.shouldShowRequestPermissionRationale(activity,
                         Manifest.permission.ACCESS_FINE_LOCATION);
-
         // Provide an additional rationale to the user. This would happen if the user denied the
         // request previously, but didn't check the "Don't ask again" checkbox.
         if (shouldProvideRationale) {
@@ -70,7 +69,7 @@ public class PermissionsHelper {
      * Callback received when a permissions request has been completed.
      */
     public static void onRequestPermissionsResult(int requestCode,
-                                           @NonNull int[] grantResults,
+                                                  @NonNull int[] grantResults,
                                                   PermissionResultListener listener) {
         Log.d(TAG, "onRequestPermissionResult");
         if (requestCode == REQUEST_PERMISSIONS_REQUEST_CODE) {
@@ -90,8 +89,9 @@ public class PermissionsHelper {
     /**
      * This methods are called in onRequestPermissionResult depending on the grantResults
      */
-    public   interface PermissionResultListener {
-         void onPermissionGranted();
-         void onPermissionDenied();
+    public interface PermissionResultListener {
+        void onPermissionGranted();
+
+        void onPermissionDenied();
     }
 }

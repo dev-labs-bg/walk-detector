@@ -44,7 +44,6 @@ import static bg.devlabs.walkdetector.util.DateTimeHelper.isTimeValid;
 public class MainActivity extends AppCompatActivity implements PermissionsHelper.PermissionResultListener {
     // tag used for logging purposes
     private static final String TAG = MainActivity.class.getSimpleName();
-
     @BindView(R.id.checked_period_edit_text)
     EditText checkedPeriodEditText;
     @BindView(R.id.detector_fab)
@@ -200,6 +199,7 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
 
     /**
      * Handling button clicks using Butterknife
+     *
      * @param view the view on which the user has clicked
      */
     @OnClick({R.id.update_check_period_button, R.id.detector_fab, R.id.set_alarm_button})
@@ -220,11 +220,11 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
     /**
      * Checks for permissions and request them if needed
      * Validates if the times are valid
-     *
+     * <p>
      * If valid:
      * Saves the new auto start and stop times
      * Sets the two alarms for them
-     *
+     * <p>
      * If invalid:
      * Shows a toast
      */
@@ -249,23 +249,23 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
     /**
      * Sets the two alarms - one for starting and one for stopping the detection service
      * The alarms are triggered once a day by sending an intent to the service
+     *
      * @param startTime at this time an intent will be sent to start the walk activity detection
-     * @param endTime at this time an intent will be sent to stop the walk activity detection
+     * @param endTime   at this time an intent will be sent to stop the walk activity detection
      */
     private void setAlarms(String startTime, String endTime) {
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        setAlarm(am,"start", 0, startTime);
-        setAlarm(am,"stop", 1, endTime);
+        setAlarm(am, "start", 0, startTime);
+        setAlarm(am, "stop", 1, endTime);
         Toast.makeText(this, R.string.set_auto_turn_on_and_off, Toast.LENGTH_SHORT).show();
     }
 
     /**
-     *
-     * @param am The system's Alarm Manager
-     * @param value what value should be sent to the Service trough the Intent Extras - start or stop
+     * @param am          The system's Alarm Manager
+     * @param value       what value should be sent to the Service trough the Intent Extras - start or stop
      * @param requestCode each request should have different code
      *                    or else they will override each other
-     * @param time at this time each day a intent will be sent to the Service
+     * @param time        at this time each day a intent will be sent to the Service
      */
     public void setAlarm(AlarmManager am, String value, int requestCode, String time) {
         Intent startDetectionIntent = new Intent(this, WalkDetectService.class);
@@ -276,7 +276,6 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
                 AlarmManager.INTERVAL_DAY, pi);
 
     }
-
 
     /**
      * Checks for permissions and request them if needed
@@ -301,10 +300,10 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
      * Clears focus of the button
      * Validates the entered check period - if it is too short or too long
      * a toast is shown to the user to warn him
-     *
+     * <p>
      * The new period is sent to the Setting Manager where all other configuration values are updated
      * and the new setting is saved to the storage
-     *
+     * <p>
      * If the user has entered an invalid number a toast is shown to inform him
      */
     private void onUpdateButtonClicked() {
@@ -337,9 +336,10 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
     /**
      * Handles check state changes on the all_day_check_box
      * Hides and clears the alarm info if the checkbox is checked
-     *
+     * <p>
      * If it is unchecked shows the alarmInfoLayout, in which the user can enter start and end times
      * for auto stop and start of the detector service
+     *
      * @param checked - the new state
      */
     @OnCheckedChanged(R.id.all_day_check_box)

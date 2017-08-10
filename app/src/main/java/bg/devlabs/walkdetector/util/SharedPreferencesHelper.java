@@ -57,16 +57,26 @@ public class SharedPreferencesHelper {
         editor.commit();
     }
 
+    /**
+     * @param context needed in order to access the Shared preferences API and in order to read String keys
+     */
     static int readCheckPeriod(Context context) {
         SharedPreferences sharedPref = getSharedPreference(context);
         return sharedPref.getInt(context.getString(R.string.check_period_key), 180);
     }
 
-    public static String readStartTime(Context context) {
+    /**
+     * @param context needed in order to access the Shared preferences API and in order to read String keys
+     */
+    static String readStartTime(Context context) {
         SharedPreferences sharedPref = getSharedPreference(context);
         return sharedPref.getString(context.getString(R.string.alarm_start_time_key), DEFAULT_TIME);
     }
 
+    /**
+     * @param context   needed in order to access the Shared preferences API and in order to read String keys
+     * @param startTime when to auto start of the service
+     */
     @SuppressLint("ApplySharedPref")
     public static void saveStartTime(Context context, String startTime) {
         SharedPreferences sharedPref = getSharedPreference(context);
@@ -75,13 +85,20 @@ public class SharedPreferencesHelper {
         editor.commit();
     }
 
-    public static String readEndTime(Context context) {
+    /**
+     * @param context needed in order to access the Shared preferences API and in order to read String keys
+     */
+    static String readEndTime(Context context) {
         SharedPreferences sharedPref = getSharedPreference(context);
         return sharedPref.getString(context.getString(R.string.alarm_end_time_key), DEFAULT_TIME);
     }
 
+    /**
+     * @param context needed in order to access the Shared preferences API and in order to read String keys
+     * @param endTime when to auto stop of the service
+     */
     @SuppressLint("ApplySharedPref")
-    public static void saveEndTime(Context context,  String endTime) {
+    public static void saveEndTime(Context context, String endTime) {
         SharedPreferences sharedPref = getSharedPreference(context);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString(context.getString(R.string.alarm_end_time_key), endTime);

@@ -18,6 +18,7 @@ public class DateTimeHelper {
 
     /**
      * Validates the user input
+     *
      * @param startTime user input time
      * @return true if the format is correct and false otherwise
      */
@@ -31,6 +32,7 @@ public class DateTimeHelper {
 
     /**
      * Sets the hours and minutes to the calendar, so it can be used for everyday alarms
+     *
      * @param startTime used to get the hour and minutes in the HH:mm format
      * @return time in millis  of the calendar
      */

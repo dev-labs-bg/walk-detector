@@ -83,15 +83,15 @@ public class WalkDetectService extends Service {
         super.onStartCommand(intent, flags, startId);
         Log.d(TAG, "onStartCommand: flags = " + flags);
 
-        if(intent.hasExtra("Alarm")){
-            if(intent.getStringExtra("Alarm").equals("start")){
+        if (intent.hasExtra("Alarm")) {
+            if (intent.getStringExtra("Alarm").equals("start")) {
                 Log.d(TAG, "onStartCommand: staring service");
-                SharedPreferencesHelper.saveShouldDetectStatus(getApplicationContext(),true);
+                SharedPreferencesHelper.saveShouldDetectStatus(getApplicationContext(), true);
                 buildFitnessClient();
                 return START_STICKY;
-            } else if(intent.getStringExtra("Alarm").equals("stop")){
+            } else if (intent.getStringExtra("Alarm").equals("stop")) {
                 Log.d(TAG, "onStartCommand: stopping service");
-                SharedPreferencesHelper.saveShouldDetectStatus(getApplicationContext(),false);
+                SharedPreferencesHelper.saveShouldDetectStatus(getApplicationContext(), false);
                 stopCheckingForWalking();
                 return START_STICKY;
             }
@@ -272,7 +272,6 @@ public class WalkDetectService extends Service {
             mClient = null;
         }
     }
-
 
     @Nullable
     @Override
