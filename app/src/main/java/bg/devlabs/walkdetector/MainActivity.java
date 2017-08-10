@@ -313,7 +313,6 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
         } catch (Exception e) {
             Toast.makeText(this, R.string.error_parsing_check_period, Toast.LENGTH_SHORT).show();
         }
-
     }
 
     /**
