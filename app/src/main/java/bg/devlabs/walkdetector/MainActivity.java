@@ -87,18 +87,11 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
     }
 
     /**
-     * Checks for permissions and request them if needed
      * Updates button icon to stop
      * Saves the new status to Shared Preferences
      * Calls the WalkDetectService, which start detecting
      */
     private void startDetection() {
-        // When permissions are revoked the app is restarted so onCreate is sufficient to check for
-        // permissions core to the Activity's functionality.
-        if (!PermissionsHelper.checkPermissions(this)) {
-            PermissionsHelper.requestPermissions(this);
-            return;
-        }
         showStopIcon();
         SharedPreferencesHelper.saveShouldDetectStatus(this, true);
         //starting the service with the startDetection command
@@ -225,6 +218,7 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
     }
 
     /**
+     * Checks for permissions and request them if needed
      * Validates if the times are valid
      *
      * If valid:
@@ -235,6 +229,12 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
      * Shows a toast
      */
     private void onAlarmButtonClicked() {
+        // When permissions are revoked the app is restarted so onCreate is sufficient to check for
+        // permissions core to the Activity's functionality.
+        if (!PermissionsHelper.checkPermissions(this)) {
+            PermissionsHelper.requestPermissions(this);
+            return;
+        }
         String startTime = startTimeEditText.getText().toString();
         String endTime = endTimeEditText.getText().toString();
         if (!isTimeValid(startTime) || !isTimeValid(endTime)) {
@@ -279,9 +279,16 @@ public class MainActivity extends AppCompatActivity implements PermissionsHelper
 
 
     /**
+     * Checks for permissions and request them if needed
      * Stops or starts detection depending on the current state
      */
     private void onDetectorStateFabClicked() {
+        // When permissions are revoked the app is restarted so onCreate is sufficient to check for
+        // permissions core to the Activity's functionality.
+        if (!PermissionsHelper.checkPermissions(this)) {
+            PermissionsHelper.requestPermissions(this);
+            return;
+        }
         if (shouldDetect) {
             stopDetection();
         } else {
