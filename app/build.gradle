@@ -39,13 +39,18 @@ android {
     }
 }
 
+ext {
+    google_play_services_library = '11.0.0'
+    google_support_library = '26.0.0'
+    butterknife_version = '8.8.0'
+}
 
 dependencies {
     // Note, specific version numbers are managed in gradle.properties. This is preferred since it
     // easily keeps sub-projects on the same versions.
-    compile "com.google.android.gms:play-services-fitness:${google_play_services_library}"
-    compile "com.android.support:appcompat-v7:${google_support_library}"
-    compile "com.android.support:design:${google_support_library}"
+    compile "com.google.android.gms:play-services-fitness:$google_play_services_library"
+    compile "com.android.support:appcompat-v7:$google_support_library"
+    compile "com.android.support:design:$google_support_library"
     compile fileTree(include: ['*.jar'], dir: 'libs')
     androidTestImplementation('com.android.support.test.espresso:espresso-core:3.0.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
@@ -54,7 +59,7 @@ dependencies {
     // Required for local unit tests (JUnit 4 framework)
     testCompile 'junit:junit:4.12'
     // Required for instrumented tests
-    androidTestCompile "com.android.support:support-annotations:${google_support_library}"
+    androidTestCompile "com.android.support:support-annotations:$google_support_library"
     androidTestCompile 'com.android.support.test:runner:1.0.0'
 
     // RxAndroid and RxJava
@@ -64,6 +69,6 @@ dependencies {
     compile 'io.reactivex.rxjava2:rxjava:2.1.0'
 
     // Butterknife
-    compile 'com.jakewharton:butterknife:8.8.0'
-    annotationProcessor 'com.jakewharton:butterknife-compiler:8.8.0'
+    compile "com.jakewharton:butterknife:$butterknife_version"
+    annotationProcessor "com.jakewharton:butterknife-compiler:$butterknife_version"
 }
