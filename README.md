@@ -6,14 +6,14 @@ And also I wanted to try the play-services-fitness API.
 The minimum Android version required is API level 21  5.0 (LOLLIPOP) 
 
 ## In the project I use:
- - [Fitness History API](https://developers.google.com/fit/android/history) - to query for step_count.delta in the checked period of time
- - [ReactiveX/RxAndroid](https://github.com/ReactiveX/RxAndroid) - to describe my interval based logic in more readable way
- - [Service](https://developer.android.com/guide/components/services.html) which is defined as indestructible and handles the detection.
- - [Alarm manager](https://developer.android.com/training/scheduling/alarms.html) - to send auto start and stop Intents to the Service.
+ - [Fitness History API](https://developers.google.com/fit/android/history) to query for step_count.delta in the checked period of time
+ - [ReactiveX/RxAndroid](https://github.com/ReactiveX/RxAndroid) to describe my interval based logic in more readable way
+ - [Service](https://developer.android.com/guide/components/services.html) which is defined as indestructible and handles the detection
+ - [Alarm manager](https://developer.android.com/training/scheduling/alarms.html) to send auto start and stop Intents to the Service
  - [Lambda expressions](https://docs.oracle.com/javase/tutorial/java/javaOO/lambdaexpressions.html)
- - [Butterknife](http://jakewharton.github.io/butterknife/) - Field and method binding for Android views
- - [Adaptive icons](https://developer.android.com/preview/features/adaptive-icons.html) - just to test them.
- - [AnimatedVectorDrawable](https://developer.android.com/reference/android/graphics/drawable/AnimatedVectorDrawable.html) to animate the FAB icon on the Home screen.
+ - [Butterknife](http://jakewharton.github.io/butterknife/) field and method binding for Android views
+ - [Adaptive icons](https://developer.android.com/preview/features/adaptive-icons.html) just to test them
+ - [AnimatedVectorDrawable](https://developer.android.com/reference/android/graphics/drawable/AnimatedVectorDrawable.html) to animate the FAB icon on the Home screen
 
 ## How to run the project:
 
